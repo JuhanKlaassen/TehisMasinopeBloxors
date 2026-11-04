@@ -21,7 +21,7 @@ type SearchContext = {
 // Heuristic for non-terminal states: closer to the goal is better, and lying down costs one extra move.
 export function evaluate(level: Level, block: Block): number {
     const distance = Math.min(...cells(block).map(c => Math.abs(c.x - level.goal.x) + Math.abs(c.y - level.goal.y)))
-    return -(distance + (block.orientation === "V" ? 0 : 1))
+    return -(distance + (block.orientation === "S" ? 0 : 1))
 }
 
 export function isWinScore(score: number): boolean {

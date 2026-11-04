@@ -1,5 +1,5 @@
-// V = standing upright (1 cell), H = lying along the x-axis (2 cells), S = lying along the y-axis (2 cells)
-export type Orientation = "V" | "H" | "S"
+// S = standing upright (1 cell), H = lying horizontally along the x-axis (2 cells), V = lying vertically along the y-axis (2 cells)
+export type Orientation = "S" | "H" | "V"
 
 export type Direction = "Up" | "Down" | "Left" | "Right"
 
@@ -41,7 +41,7 @@ export function parseLevel(text: string): Level {
         for (let x = 0; x < width; x++) {
             const ch = row[x] ?? "."
             tiles[y].push(ch === "#" || ch === "S" || ch === "G")
-            if (ch === "S") start = { x, y, orientation: "V" }
+            if (ch === "S") start = { x, y, orientation: "S" }
             if (ch === "G") goal = { x, y }
         }
     })
@@ -53,27 +53,27 @@ export function parseLevel(text: string): Level {
 export function roll(block: Block, direction: Direction): Block {
     const { x, y, orientation } = block
     switch (orientation) {
-        case "V":
+        case "S":
             if (direction === "Right") return { x: x + 1, y, orientation: "H" }
             if (direction === "Left") return { x: x - 2, y, orientation: "H" }
-            if (direction === "Down") return { x, y: y + 1, orientation: "S" }
-            return { x, y: y - 2, orientation: "S" }
+            if (direction === "Down") return { x, y: y + 1, orientation: "V" }
+            return { x, y: y - 2, orientation: "V" }
         case "H":
-            if (direction === "Right") return { x: x + 2, y, orientation: "V" }
-            if (direction === "Left") return { x: x - 1, y, orientation: "V" }
+            if (direction === "Right") return { x: x + 2, y, orientation: "S" }
+            if (direction === "Left") return { x: x - 1, y, orientation: "S" }
             if (direction === "Down") return { x, y: y + 1, orientation: "H" }
             return { x, y: y - 1, orientation: "H" }
-        case "S":
-            if (direction === "Right") return { x: x + 1, y, orientation: "S" }
-            if (direction === "Left") return { x: x - 1, y, orientation: "S" }
-            if (direction === "Down") return { x, y: y + 2, orientation: "V" }
-            return { x, y: y - 1, orientation: "V" }
+        case "V":
+            if (direction === "Right") return { x: x + 1, y, orientation: "V" }
+            if (direction === "Left") return { x: x - 1, y, orientation: "V" }
+            if (direction === "Down") return { x, y: y + 2, orientation: "S" }
+            return { x, y: y - 1, orientation: "S" }
     }
 }
 
 export function cells(block: Block): Cell[] {
     const { x, y, orientation } = block
-    if (orientation === "V") return [{ x, y }]
+    if (orientation === "S") return [{ x, y }]
     if (orientation === "H") return [{ x, y }, { x: x + 1, y }]
     return [{ x, y }, { x, y: y + 1 }]
 }
@@ -88,7 +88,7 @@ export function isOnBoard(level: Level, block: Block): boolean {
 }
 
 export function isWin(level: Level, block: Block): boolean {
-    return block.orientation === "V" && block.x === level.goal.x && block.y === level.goal.y
+    return block.orientation === "S" && block.x === level.goal.x && block.y === level.goal.y
 }
 
 export function stateKey(block: Block): string {
