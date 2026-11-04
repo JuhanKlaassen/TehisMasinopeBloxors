@@ -1,0 +1,1262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Bloxorz 3D & AI Solver Visualizer</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Three.js CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+    <style>
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: #0b0f19;
+            color: #f3f4f6;
+            overflow: hidden;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        .font-mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Glassmorphism Styling */
+        .glass-panel {
+            background: rgba(17, 24, 39, 0.75);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .glass-btn {
+            background: rgba(30, 41, 59, 0.8);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            transition: all 0.2s ease;
+        }
+
+        .glass-btn:hover:not(:disabled) {
+            background: rgba(51, 65, 85, 0.9);
+            border-color: rgba(99, 102, 241, 0.5);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
+        }
+
+        .glass-btn:active:not(:disabled) {
+            transform: translateY(1px);
+        }
+
+        .glass-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        /* Custom Scrollbar for side panel */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.6);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(99, 102, 241, 0.5);
+            border-radius: 3px;
+        }
+
+        /* Canvas overlay canvas styling */
+        #webgl-container {
+            width: 100vw;
+            height: 100vh;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+
+        /* D-Pad Buttons for Touch Mobile */
+        .dpad-btn {
+            touch-action: manipulation;
+        }
+    </style>
+</head>
+<body class="w-full h-full relative">
+
+    <!-- WebGL Canvas Container -->
+    <div id="webgl-container"></div>
+
+    <!-- UI Overlay Header / Info Bar -->
+    <div class="absolute top-4 left-4 right-4 z-10 flex flex-col sm:flex-row justify-between items-center gap-4 pointer-events-none">
+        <!-- Title & Level Selector -->
+        <div class="glass-panel rounded-2xl px-5 py-3 flex items-center gap-4 pointer-events-auto shadow-2xl">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-500 flex items-center justify-center text-white shadow-lg shadow-indigo-500/30">
+                    <i class="fa-solid font-bold fa-cube text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold tracking-wide bg-gradient-to-r from-white via-indigo-100 to-indigo-300 bg-clip-text text-transparent">BLOXORZ 3D</h1>
+                    <p class="text-xs text-indigo-300/70 font-medium">AI Solver Visualizer</p>
+                </div>
+            </div>
+            
+            <div class="h-8 w-[1px] bg-white/10 mx-1"></div>
+
+            <select id="levelSelect" class="bg-slate-900/90 text-indigo-200 border border-indigo-500/30 rounded-xl px-3 py-1.5 text-sm font-semibold focus:outline-none focus:border-indigo-500 cursor-pointer transition">
+                <!-- Levels populated dynamically -->
+            </select>
+        </div>
+
+        <!-- Gameplay Stats Bar -->
+        <div class="glass-panel rounded-2xl px-6 py-3 flex items-center gap-6 pointer-events-auto shadow-2xl">
+            <div class="text-center">
+                <span class="block text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Moves</span>
+                <span id="moveCounter" class="text-xl font-bold font-mono text-indigo-400">0</span>
+            </div>
+            <div class="h-8 w-[1px] bg-white/10"></div>
+            <div class="text-center">
+                <span class="block text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Orientation</span>
+                <span id="orientationBadge" class="text-xs font-semibold px-2.5 py-1 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 inline-block mt-0.5">
+                    Standing
+                </span>
+            </div>
+            <div class="h-8 w-[1px] bg-white/10"></div>
+            <button id="btnReset" title="Reset Level (R)" class="glass-btn w-9 h-9 rounded-xl flex items-center justify-center text-slate-300 hover:text-white">
+                <i class="fa-solid fa-rotate-right"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- AI Control & Analytics Panel (Right Side Desktop / Bottom Mobile) -->
+    <div class="absolute right-4 top-24 bottom-6 w-80 max-w-[calc(100vw-2rem)] z-10 flex flex-col gap-4 pointer-events-none">
+        
+        <!-- AI Controls Glass Box -->
+        <div class="glass-panel rounded-2xl p-4 pointer-events-auto flex flex-col gap-3 shadow-2xl">
+            <div class="flex items-center justify-between">
+                <h2 class="text-sm font-bold tracking-wider text-indigo-300 uppercase flex items-center gap-2">
+                    <i class="fa-solid fa-brain text-purple-400"></i> AI Solver (A*)
+                </h2>
+                <span id="aiStatusTag" class="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">Idle</span>
+            </div>
+
+            <!-- Primary Action Button -->
+            <button id="btnSolve" class="w-full py-2.5 px-4 rounded-xl font-semibold bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white shadow-lg shadow-indigo-600/30 transition flex items-center justify-center gap-2 text-sm">
+                <i class="fa-solid fa-wand-magic-sparkles"></i>
+                <span>Find Shortest Path</span>
+            </button>
+
+            <!-- Auto-Play Controls -->
+            <div class="grid grid-cols-3 gap-2">
+                <button id="btnPlay" disabled class="glass-btn py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5">
+                    <i class="fa-solid fa-play text-emerald-400"></i> Play
+                </button>
+                <button id="btnStep" disabled class="glass-btn py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5">
+                    <i class="fa-solid fa-forward-step text-amber-400"></i> Step
+                </button>
+                <button id="btnPause" disabled class="glass-btn py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5">
+                    <i class="fa-solid fa-pause text-rose-400"></i> Pause
+                </button>
+            </div>
+
+            <!-- Playback Speed Slider -->
+            <div class="mt-1">
+                <div class="flex justify-between text-[11px] text-slate-400 mb-1">
+                    <span>Speed</span>
+                    <span id="speedValue" class="font-mono text-indigo-300">1.0x</span>
+                </div>
+                <input id="speedSlider" type="range" min="0.5" max="3.0" step="0.25" value="1.0" class="w-full accent-indigo-500 bg-slate-800 rounded-lg cursor-pointer h-1.5">
+            </div>
+        </div>
+
+        <!-- Solver Analytics / Path Tree Box -->
+        <div class="glass-panel rounded-2xl p-4 pointer-events-auto flex-1 flex flex-col min-h-0 shadow-2xl">
+            <h3 class="text-xs font-bold tracking-wider text-slate-400 uppercase mb-3 flex items-center justify-between">
+                <span>Solver Analytics</span>
+                <i class="fa-solid fa-chart-simple text-slate-500"></i>
+            </h3>
+
+            <div class="grid grid-cols-3 gap-2 mb-3">
+                <div class="bg-slate-900/60 p-2 rounded-xl border border-white/5 text-center">
+                    <span class="block text-[9px] uppercase text-slate-400 font-semibold">Path</span>
+                    <span id="statPathLength" class="text-sm font-bold font-mono text-indigo-300">--</span>
+                </div>
+                <div class="bg-slate-900/60 p-2 rounded-xl border border-white/5 text-center">
+                    <span class="block text-[9px] uppercase text-slate-400 font-semibold">Explored</span>
+                    <span id="statNodesExplored" class="text-sm font-bold font-mono text-purple-300">--</span>
+                </div>
+                <div class="bg-slate-900/60 p-2 rounded-xl border border-white/5 text-center">
+                    <span class="block text-[9px] uppercase text-slate-400 font-semibold">Time</span>
+                    <span id="statSolveTime" class="text-sm font-bold font-mono text-emerald-300">--</span>
+                </div>
+            </div>
+
+            <!-- Steps Explorer Queue -->
+            <span class="text-[10px] uppercase tracking-wider text-slate-400 font-semibold mb-1.5 block">Move Solution Queue</span>
+            <div id="solutionStepsContainer" class="flex-1 overflow-y-auto rounded-xl bg-slate-950/50 p-2 border border-white/5 font-mono text-xs space-y-1">
+                <div class="text-slate-500 text-center py-6 text-xs italic">
+                    Click "Find Shortest Path" to generate move sequence.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- On-Screen Touch D-Pad Controls for Mobile/Tablet -->
+    <div class="absolute left-6 bottom-6 z-10 pointer-events-auto md:hidden flex flex-col items-center">
+        <button id="btnUp" class="dpad-btn glass-btn w-12 h-12 rounded-2xl mb-1 flex items-center justify-center text-lg active:bg-indigo-600">
+            <i class="fa-solid fa-chevron-up"></i>
+        </button>
+        <div class="flex gap-4">
+            <button id="btnLeft" class="dpad-btn glass-btn w-12 h-12 rounded-2xl flex items-center justify-center text-lg active:bg-indigo-600">
+                <i class="fa-solid fa-chevron-left"></i>
+            </button>
+            <button id="btnDown" class="dpad-btn glass-btn w-12 h-12 rounded-2xl flex items-center justify-center text-lg active:bg-indigo-600">
+                <i class="fa-solid fa-chevron-down"></i>
+            </button>
+            <button id="btnRight" class="dpad-btn glass-btn w-12 h-12 rounded-2xl flex items-center justify-center text-lg active:bg-indigo-600">
+                <i class="fa-solid fa-chevron-right"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Level Complete / Game Over Modal Box -->
+    <div id="modalOverlay" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-filter backdrop-blur-md hidden flex items-center justify-center p-4">
+        <div class="glass-panel max-w-sm w-full rounded-3xl p-6 text-center shadow-2xl border border-indigo-500/30 transform transition-all scale-95 opacity-0" id="modalCard">
+            <div id="modalIconContainer" class="w-16 h-16 rounded-2xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 mx-auto flex items-center justify-center text-3xl mb-4 shadow-lg shadow-emerald-500/20">
+                <i id="modalIcon" class="fa-solid fa-trophy"></i>
+            </div>
+            <h2 id="modalTitle" class="text-2xl font-bold mb-1 text-white">Stage Cleared!</h2>
+            <p id="modalSubtext" class="text-sm text-slate-300 mb-6">You successfully slotted the block into the goal.</p>
+
+            <div class="grid grid-cols-2 gap-3">
+                <button id="btnModalRestart" class="glass-btn py-3 rounded-xl font-semibold text-sm">Retry Level</button>
+                <button id="btnModalNext" class="py-3 rounded-xl font-semibold text-sm bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/30">Next Level</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN JAVASCRIPT GAME ENGINE -->
+    <script>
+        /**
+         * BLOXORZ ENGINE & AI SOLVER CORE ARCHITECTURE
+         */
+
+        // Level Definitions
+        // Legend:
+        // '.' = Normal tile (0)
+        // ' ' = Void / Hole
+        // 'H' = Level Goal Target Hole
+        // 'O' = Soft Switch (triggers when block touches lying or standing)
+        // 'X' = Heavy Switch (triggers ONLY when block stands on it)
+        // 'F' = Fragile Orange Tile (breaks if block stands upright)
+        // 'B' = Toggle Bridge Tile (starts hidden/active based on config)
+
+        const LEVELS = [
+            {
+                id: 1,
+                name: "Stage 1: Genesis",
+                start: { x: 1, y: 1 },
+                grid: [
+                    ".. ......",
+                    ".........",
+                    ".........",
+                    "......H..",
+                    ".........",
+                    "  ......."
+                ],
+                switches: [],
+                bridges: []
+            },
+            {
+                id: 2,
+                name: "Stage 2: Soft Touch",
+                start: { x: 1, y: 2 },
+                grid: [
+                    "......  ",
+                    "...O..  ",
+                    "......  ",
+                    "   .....",
+                    "   ..H.."
+                ],
+                switches: [
+                    { x: 3, y: 1, type: 'soft', targetBridges: [0], action: 'toggle' }
+                ],
+                bridges: [
+                    { x: 3, y: 3, active: false }
+                ]
+            },
+            {
+                id: 3,
+                name: "Stage 3: Fragile Step",
+                start: { x: 1, y: 1 },
+                grid: [
+                    "....... ",
+                    ".FFF... ",
+                    ".F..H.. ",
+                    "....... "
+                ],
+                switches: [],
+                bridges: []
+            },
+            {
+                id: 4,
+                name: "Stage 4: Heavy Pressure",
+                start: { x: 1, y: 1 },
+                grid: [
+                    ".....   ",
+                    "..X..   ",
+                    ".....   ",
+                    "   .....",
+                    "   ..H.."
+                ],
+                switches: [
+                    { x: 2, y: 1, type: 'heavy', targetBridges: [0], action: 'toggle' }
+                ],
+                bridges: [
+                    { x: 3, y: 3, active: false }
+                ]
+            },
+            {
+                id: 5,
+                name: "Stage 5: Master Challenge",
+                start: { x: 0, y: 1 },
+                grid: [
+                    "......  ",
+                    ".O.F....",
+                    "...F..H.",
+                    "......  "
+                ],
+                switches: [
+                    { x: 1, y: 1, type: 'soft', targetBridges: [0], action: 'toggle' }
+                ],
+                bridges: [
+                    { x: 4, y: 1, active: false }
+                ]
+            }
+        ];
+
+        // Orientations
+        const ORIENTATION = {
+            STANDING: 0,   // Occupies (x, y) with height 2 along Z
+            HORIZONTAL: 1, // Occupies (x, y) and (x+1, y) along X-axis
+            VERTICAL: 2    // Occupies (x, y) and (x, y+1) along Y-axis
+        };
+
+        // Direction Definitions
+        const DIR = {
+            UP: { dx: 0, dy: -1 },
+            DOWN: { dx: 0, dy: 1 },
+            LEFT: { dx: -1, dy: 0 },
+            RIGHT: { dx: 1, dy: 0 }
+        };
+
+        // Global State & Visualizer Variables
+        let currentLevelIdx = 0;
+        let currentLevel = null;
+        let blockState = { x: 0, y: 0, orient: ORIENTATION.STANDING };
+        let moveCount = 0;
+        let isAnimating = false;
+        let activeBridges = []; // Array of boolean states for current level bridges
+        let orangeTilesBroken = new Set(); // Track broken fragile tile coordinates
+
+        // AI Solution State
+        let aiSolutionPath = [];
+        let aiCurrentStep = 0;
+        let aiAutoPlayTimer = null;
+        let aiPlaySpeed = 1.0;
+
+        // THREE.JS Renderer & Scene Graphics
+        let scene, camera, renderer, controls;
+        let blockMesh, gridGroup, bridgeMeshes = [], fragileMeshes = {};
+        let shadowMesh;
+
+        // --- GAME INITIALIZATION ---
+        window.addEventListener('DOMContentLoaded', () => {
+            initThreeJS();
+            setupUIEventListeners();
+            loadLevel(0);
+            animateLoop();
+        });
+
+        // Setup 3D Scene
+        function initThreeJS() {
+            const container = document.getElementById('webgl-container');
+            
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0b0f19);
+            scene.fog = new THREE.FogExp2(0x0b0f19, 0.035);
+
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+            
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            container.appendChild(renderer.domElement);
+
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.maxPolarAngle = Math.PI / 2 - 0.05; // Don't go below ground
+            controls.minDistance = 8;
+            controls.maxDistance = 40;
+
+            // Lights
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+
+            const dirLight = new THREE.DirectionalLight(0xffffff, 0.9);
+            dirLight.position.set(12, 20, 15);
+            dirLight.castShadow = true;
+            dirLight.shadow.mapSize.width = 2048;
+            dirLight.shadow.mapSize.height = 2048;
+            dirLight.shadow.camera.near = 0.5;
+            dirLight.shadow.camera.far = 50;
+            dirLight.shadow.camera.left = -15;
+            dirLight.shadow.camera.right = 15;
+            dirLight.shadow.camera.top = 15;
+            dirLight.shadow.camera.bottom = -15;
+            dirLight.shadow.bias = -0.0005;
+            scene.add(dirLight);
+
+            const pointLight = new THREE.PointLight(0x6366f1, 1.5, 25);
+            pointLight.position.set(0, 5, 0);
+            scene.add(pointLight);
+
+            // Create Block Mesh
+            const blockGeo = new THREE.BoxGeometry(0.96, 1.96, 0.96);
+            const blockMat = new THREE.MeshStandardMaterial({
+                color: 0x6366f1,
+                roughness: 0.2,
+                metalness: 0.5,
+                wireframe: false
+            });
+            blockMesh = new THREE.Mesh(blockGeo, blockMat);
+            blockMesh.castShadow = true;
+            blockMesh.receiveShadow = true;
+            scene.add(blockMesh);
+
+            // Group for tiles
+            gridGroup = new THREE.Group();
+            scene.add(gridGroup);
+
+            window.addEventListener('resize', onWindowResize);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // --- LEVEL LOADING & GRAPHICS GENERATION ---
+        function loadLevel(index) {
+            currentLevelIdx = index;
+            currentLevel = LEVELS[index];
+            moveCount = 0;
+            orangeTilesBroken.clear();
+            stopAutoPlay();
+            resetAISolverUI();
+
+            blockState = {
+                x: currentLevel.start.x,
+                y: currentLevel.start.y,
+                orient: ORIENTATION.STANDING
+            };
+
+            // Setup active bridges
+            activeBridges = currentLevel.bridges.map(b => b.active);
+
+            buildLevelGraphics();
+            updateBlockMeshPosition(false);
+            updateUIStats();
+
+            // Set camera position according to grid size
+            const rows = currentLevel.grid.length;
+            const cols = Math.max(...currentLevel.grid.map(r => r.length));
+            controls.target.set(cols / 2, 0, rows / 2);
+            camera.position.set(cols / 2 - 8, 12, rows / 2 + 12);
+            controls.update();
+        }
+
+        function buildLevelGraphics() {
+            // Clear existing tiles
+            while (gridGroup.children.length > 0) {
+                const child = gridGroup.children[0];
+                gridGroup.remove(child);
+                if (child.geometry) child.geometry.dispose();
+            }
+            bridgeMeshes = [];
+            fragileMeshes = {};
+
+            const tileGeo = new THREE.BoxGeometry(0.96, 0.4, 0.96);
+            
+            // Materials
+            const normalMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.4, metalness: 0.1 });
+            const fragileMat = new THREE.MeshStandardMaterial({ color: 0xf97316, roughness: 0.6, metalness: 0.1 });
+            const switchSoftMat = new THREE.MeshStandardMaterial({ color: 0x06b6d4, roughness: 0.3, metalness: 0.6 });
+            const switchHeavyMat = new THREE.MeshStandardMaterial({ color: 0xec4899, roughness: 0.3, metalness: 0.6 });
+            const bridgeMat = new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.5, transparent: true, opacity: 0.9 });
+
+            for (let y = 0; y < currentLevel.grid.length; y++) {
+                const row = currentLevel.grid[y];
+                for (let x = 0; x < row.length; x++) {
+                    const char = row[x];
+                    if (char === ' ') continue; // Void
+
+                    const tileX = x;
+                    const tileZ = y;
+
+                    // Hole handling
+                    if (char === 'H') {
+                        // Destination Hole Frame Rim
+                        const holeBorderGeo = new THREE.BoxGeometry(1.0, 0.4, 1.0);
+                        const holeBorderMat = new THREE.MeshStandardMaterial({ color: 0x10b981, roughness: 0.2, wireframe: true });
+                        const holeMesh = new THREE.Mesh(holeBorderGeo, holeBorderMat);
+                        holeMesh.position.set(tileX, -0.2, tileZ);
+                        gridGroup.add(holeMesh);
+                        continue;
+                    }
+
+                    let mat = normalMat;
+                    if (char === 'F') mat = fragileMat;
+
+                    // Check for custom switches on this tile
+                    const switchInfo = currentLevel.switches.find(s => s.x === x && s.y === y);
+                    if (switchInfo) {
+                        mat = switchInfo.type === 'soft' ? switchSoftMat : switchHeavyMat;
+                    }
+
+                    const mesh = new THREE.Mesh(tileGeo, mat);
+                    mesh.position.set(tileX, -0.2, tileZ);
+                    mesh.receiveShadow = true;
+                    mesh.castShadow = true;
+                    gridGroup.add(mesh);
+
+                    if (char === 'F') {
+                        fragileMeshes[`${x},${y}`] = mesh;
+                    }
+
+                    // Add switch icon graphic overlay
+                    if (switchInfo) {
+                        const iconGeo = new THREE.CylinderGeometry(0.25, 0.25, 0.05, 16);
+                        const iconMat = new THREE.MeshStandardMaterial({ 
+                            color: switchInfo.type === 'soft' ? 0x22d3ee : 0xf472b6, 
+                            emissive: switchInfo.type === 'soft' ? 0x0891b2 : 0xdb2777,
+                            emissiveIntensity: 0.6 
+                        });
+                        const iconMesh = new THREE.Mesh(iconGeo, iconMat);
+                        iconMesh.position.set(tileX, 0.03, tileZ);
+                        gridGroup.add(iconMesh);
+                    }
+                }
+            }
+
+            // Build Dynamic Bridges
+            currentLevel.bridges.forEach((br, bIdx) => {
+                const mesh = new THREE.Mesh(tileGeo, bridgeMat);
+                mesh.position.set(br.x, -0.2, br.y);
+                mesh.visible = activeBridges[bIdx];
+                mesh.receiveShadow = true;
+                gridGroup.add(mesh);
+                bridgeMeshes.push(mesh);
+            });
+        }
+
+        // --- BLOCK STATE & GRAPHICAL TRANSFORMATIONS ---
+        function updateBlockMeshPosition(animated = true) {
+            const { x, y, orient } = blockState;
+            
+            let targetX = x;
+            let targetY = 1.0; // Half height of 2 + box displacement off ground
+            let targetZ = y;
+            let rotX = 0, rotZ = 0;
+
+            if (orient === ORIENTATION.STANDING) {
+                targetX = x;
+                targetZ = y;
+                targetY = 0.98;
+                rotX = 0;
+                rotZ = 0;
+            } else if (orient === ORIENTATION.HORIZONTAL) {
+                targetX = x + 0.5;
+                targetZ = y;
+                targetY = 0.48;
+                rotZ = Math.PI / 2;
+            } else if (orient === ORIENTATION.VERTICAL) {
+                targetX = x;
+                targetZ = y + 0.5;
+                targetY = 0.48;
+                rotX = Math.PI / 2;
+            }
+
+            if (!animated) {
+                blockMesh.position.set(targetX, targetY, targetZ);
+                blockMesh.rotation.set(rotX, 0, rotZ);
+            } else {
+                // Smooth interpolation for simple movements/resets
+                blockMesh.position.set(targetX, targetY, targetZ);
+                blockMesh.rotation.set(rotX, 0, rotZ);
+            }
+        }
+
+        // --- PHYSICS & ROLL ANIMATION ---
+        function rollBlock(dir) {
+            if (isAnimating) return;
+
+            const nextState = getNextState(blockState, dir);
+            isAnimating = true;
+
+            // Rolling Pivot Math
+            const pivot = new THREE.Vector3();
+            const axis = new THREE.Vector3();
+            const angle = Math.PI / 2;
+
+            const bX = blockState.x;
+            const bY = blockState.y;
+            const orient = blockState.orient;
+
+            if (dir === DIR.RIGHT) {
+                axis.set(0, 0, -1);
+                if (orient === ORIENTATION.STANDING) pivot.set(bX + 0.5, 0, bY);
+                else if (orient === ORIENTATION.HORIZONTAL) pivot.set(bX + 1.5, 0, bY);
+                else if (orient === ORIENTATION.VERTICAL) pivot.set(bX + 0.5, 0, bY);
+            } else if (dir === DIR.LEFT) {
+                axis.set(0, 0, 1);
+                if (orient === ORIENTATION.STANDING) pivot.set(bX - 0.5, 0, bY);
+                else if (orient === ORIENTATION.HORIZONTAL) pivot.set(bX - 0.5, 0, bY);
+                else if (orient === ORIENTATION.VERTICAL) pivot.set(bX - 0.5, 0, bY);
+            } else if (dir === DIR.DOWN) {
+                axis.set(1, 0, 0);
+                if (orient === ORIENTATION.STANDING) pivot.set(bX, 0, bY + 0.5);
+                else if (orient === ORIENTATION.HORIZONTAL) pivot.set(bX, 0, bY + 0.5);
+                else if (orient === ORIENTATION.VERTICAL) pivot.set(bX, 0, bY + 1.5);
+            } else if (dir === DIR.UP) {
+                axis.set(-1, 0, 0);
+                if (orient === ORIENTATION.STANDING) pivot.set(bX, 0, bY - 0.5);
+                else if (orient === ORIENTATION.HORIZONTAL) pivot.set(bX, 0, bY - 0.5);
+                else if (orient === ORIENTATION.VERTICAL) pivot.set(bX, 0, bY - 0.5);
+            }
+
+            // Perform smooth rotation animation using Matrix transforms
+            const startMatrix = blockMesh.matrix.clone();
+            const duration = 180 / aiPlaySpeed;
+            const startTime = performance.now();
+
+            function animateRoll(now) {
+                const elapsed = now - startTime;
+                const progress = Math.min(elapsed / duration, 1.0);
+                
+                // Ease out quad
+                const easeProgress = progress * (2 - progress);
+                const currentAngle = angle * easeProgress;
+
+                const rotationMatrix = new THREE.Matrix4().makeRotationAxis(axis, currentAngle);
+                const translationMatrix = new THREE.Matrix4().makeTranslation(pivot.x, pivot.y, pivot.z);
+                const invTranslationMatrix = new THREE.Matrix4().makeTranslation(-pivot.x, -pivot.y, -pivot.z);
+
+                const finalMatrix = new THREE.Matrix4();
+                finalMatrix.multiply(translationMatrix);
+                finalMatrix.multiply(rotationMatrix);
+                finalMatrix.multiply(invTranslationMatrix);
+                finalMatrix.multiply(startMatrix);
+
+                blockMesh.matrix.identity();
+                blockMesh.matrix.multiply(finalMatrix);
+                blockMesh.matrix.decompose(blockMesh.position, blockMesh.quaternion, blockMesh.scale);
+
+                if (progress < 1.0) {
+                    requestAnimationFrame(animateRoll);
+                } else {
+                    // Animation complete -> Update logical state
+                    blockState = nextState;
+                    moveCount++;
+                    updateUIStats();
+                    updateBlockMeshPosition(false);
+                    checkBoardCollisions();
+                    isAnimating = false;
+                }
+            }
+
+            requestAnimationFrame(animateRoll);
+        }
+
+        // Compute state transition given direction
+        function getNextState(state, dir) {
+            const { x, y, orient } = state;
+            let nx = x, ny = y, nOrient = orient;
+
+            if (orient === ORIENTATION.STANDING) {
+                if (dir === DIR.RIGHT) { nx = x + 1; ny = y; nOrient = ORIENTATION.HORIZONTAL; }
+                else if (dir === DIR.LEFT) { nx = x - 2; ny = y; nOrient = ORIENTATION.HORIZONTAL; }
+                else if (dir === DIR.DOWN) { nx = x; ny = y + 1; nOrient = ORIENTATION.VERTICAL; }
+                else if (dir === DIR.UP) { nx = x; ny = y - 2; nOrient = ORIENTATION.VERTICAL; }
+            } else if (orient === ORIENTATION.HORIZONTAL) {
+                if (dir === DIR.RIGHT) { nx = x + 2; ny = y; nOrient = ORIENTATION.STANDING; }
+                else if (dir === DIR.LEFT) { nx = x - 1; ny = y; nOrient = ORIENTATION.STANDING; }
+                else if (dir === DIR.DOWN) { nx = x; ny = y + 1; nOrient = ORIENTATION.HORIZONTAL; }
+                else if (dir === DIR.UP) { nx = x; ny = y - 1; nOrient = ORIENTATION.HORIZONTAL; }
+            } else if (orient === ORIENTATION.VERTICAL) {
+                if (dir === DIR.RIGHT) { nx = x + 1; ny = y; nOrient = ORIENTATION.VERTICAL; }
+                else if (dir === DIR.LEFT) { nx = x - 1; ny = y; nOrient = ORIENTATION.VERTICAL; }
+                else if (dir === DIR.DOWN) { nx = x; ny = y + 2; nOrient = ORIENTATION.STANDING; }
+                else if (dir === DIR.UP) { nx = x; ny = y - 1; nOrient = ORIENTATION.STANDING; }
+            }
+
+            return { x: nx, y: ny, orient: nOrient };
+        }
+
+        // Get all grid coordinates currently occupied by block
+        function getOccupiedTiles(state) {
+            const tiles = [{ x: state.x, y: state.y }];
+            if (state.orient === ORIENTATION.HORIZONTAL) {
+                tiles.push({ x: state.x + 1, y: state.y });
+            } else if (state.orient === ORIENTATION.VERTICAL) {
+                tiles.push({ x: state.x, y: state.y + 1 });
+            }
+            return tiles;
+        }
+
+        // --- COLLISION RULES & GAME RULES ---
+        function checkBoardCollisions() {
+            const tiles = getOccupiedTiles(blockState);
+            
+            // 1. Check bounds / empty tiles / fragile break
+            let isValid = true;
+            for (let tile of tiles) {
+                if (!isTileSolid(tile.x, tile.y)) {
+                    isValid = false;
+                    break;
+                }
+            }
+
+            // Check Fragile orange tile rule
+            if (blockState.orient === ORIENTATION.STANDING) {
+                const char = getTileChar(blockState.x, blockState.y);
+                if (char === 'F') {
+                    // Fragile tile collapses under standing vertical weight!
+                    isValid = false;
+                    triggerTileBreakAnimation(blockState.x, blockState.y);
+                }
+            }
+
+            if (!isValid) {
+                triggerFallAnimation();
+                return;
+            }
+
+            // 2. Check Level Target Completion Goal
+            if (blockState.orient === ORIENTATION.STANDING) {
+                const char = getTileChar(blockState.x, blockState.y);
+                if (char === 'H') {
+                    triggerWinSequence();
+                    return;
+                }
+            }
+
+            // 3. Check Switches / Buttons Triggering
+            currentLevel.switches.forEach(sw => {
+                const isTouching = tiles.some(t => t.x === sw.x && t.y === sw.y);
+                if (isTouching) {
+                    if (sw.type === 'soft') {
+                        toggleBridges(sw.targetBridges);
+                    } else if (sw.type === 'heavy' && blockState.orient === ORIENTATION.STANDING) {
+                        toggleBridges(sw.targetBridges);
+                    }
+                }
+            });
+        }
+
+        function isTileSolid(x, y) {
+            const char = getTileChar(x, y);
+            if (char === ' ' || char === null) return false;
+            if (char === 'H') return true; // Hole is valid to step across, but falling standing finishes stage
+
+            // Check Bridge State
+            if (char === 'B') {
+                const brIdx = currentLevel.bridges.findIndex(b => b.x === x && b.y === y);
+                if (brIdx !== -1 && !activeBridges[brIdx]) return false;
+            }
+
+            // Check if fragile tile is already broken
+            if (orangeTilesBroken.has(`${x},${y}`)) return false;
+
+            return true;
+        }
+
+        function getTileChar(x, y) {
+            if (y < 0 || y >= currentLevel.grid.length) return null;
+            const row = currentLevel.grid[y];
+            if (x < 0 || x >= row.length) return null;
+            
+            // Check dynamic bridges position
+            const isBridge = currentLevel.bridges.some(b => b.x === x && b.y === y);
+            if (isBridge) return 'B';
+
+            return row[x];
+        }
+
+        function toggleBridges(bridgeIndices) {
+            bridgeIndices.forEach(idx => {
+                if (idx >= 0 && idx < activeBridges.length) {
+                    activeBridges[idx] = !activeBridges[idx];
+                    if (bridgeMeshes[idx]) {
+                        bridgeMeshes[idx].visible = activeBridges[idx];
+                    }
+                }
+            });
+        }
+
+        function triggerTileBreakAnimation(x, y) {
+            orangeTilesBroken.add(`${x},${y}`);
+            const mesh = fragileMeshes[`${x},${y}`];
+            if (mesh) {
+                // Drop fragile tile frame down
+                mesh.position.y -= 1.0;
+                mesh.visible = false;
+            }
+        }
+
+        function triggerFallAnimation() {
+            isAnimating = true;
+            stopAutoPlay();
+
+            // Animate block falling into void
+            const startY = blockMesh.position.y;
+            const startTime = performance.now();
+
+            function animateFall(now) {
+                const elapsed = (now - startTime) / 1000;
+                blockMesh.position.y = startY - 0.5 * 9.8 * elapsed * elapsed;
+                blockMesh.rotation.x += 0.05;
+                blockMesh.rotation.z += 0.05;
+
+                if (elapsed < 0.6) {
+                    requestAnimationFrame(animateFall);
+                } else {
+                    isAnimating = false;
+                    showModal(false, "Block Fell Off Edge!", "Be careful around open space and fragile tiles.");
+                }
+            }
+            requestAnimationFrame(animateFall);
+        }
+
+        function triggerWinSequence() {
+            stopAutoPlay();
+            showModal(true, "Stage Cleared!", `Solved in ${moveCount} moves.`);
+        }
+
+        // --- AI SOLVER ALGORITHM (A* / SEARCH TREE) ---
+        function solveLevelAI() {
+            const startTime = performance.now();
+            setAIStatus("Solving...", "bg-amber-500/20 text-amber-300 border-amber-500/30");
+
+            // Initial State representation for Search Node
+            // Bridges state must be hashed to prevent infinite cycles
+            const startNode = {
+                x: currentLevel.start.x,
+                y: currentLevel.start.y,
+                orient: ORIENTATION.STANDING,
+                bridges: [...activeBridges],
+                broken: new Set(),
+                path: [],
+                g: 0,
+                h: 0
+            };
+
+            // Goal coordinates
+            let targetHole = null;
+            for (let y = 0; y < currentLevel.grid.length; y++) {
+                for (let x = 0; x < currentLevel.grid[y].length; x++) {
+                    if (currentLevel.grid[y][x] === 'H') {
+                        targetHole = { x, y };
+                        break;
+                    }
+                }
+            }
+
+            if (!targetHole) return;
+
+            // Heuristic function (Manhattan distance to target hole)
+            function getHeuristic(state) {
+                return Math.abs(state.x - targetHole.x) + Math.abs(state.y - targetHole.y);
+            }
+
+            // Unique State Key Encoder
+            function getStateKey(s) {
+                const bridgeKey = s.bridges.map(b => (b ? '1' : '0')).join('');
+                return `${s.x},${s.y},${s.orient},${bridgeKey}`;
+            }
+
+            // Priority Queue / Open Set for A*
+            const openSet = [startNode];
+            const closedSet = new Set();
+            let nodesExplored = 0;
+            let solutionNode = null;
+
+            while (openSet.length > 0) {
+                // Sort by f = g + h
+                openSet.sort((a, b) => (a.g + a.h) - (b.g + b.h));
+                const current = openSet.shift();
+                nodesExplored++;
+
+                // Check Goal Condition
+                if (current.orient === ORIENTATION.STANDING && current.x === targetHole.x && current.y === targetHole.y) {
+                    solutionNode = current;
+                    break;
+                }
+
+                const key = getStateKey(current);
+                if (closedSet.has(key)) continue;
+                closedSet.add(key);
+
+                // Explore 4 Directional Moves
+                const directions = [
+                    { dir: DIR.UP, label: 'UP' },
+                    { dir: DIR.DOWN, label: 'DOWN' },
+                    { dir: DIR.LEFT, label: 'LEFT' },
+                    { dir: DIR.RIGHT, label: 'RIGHT' }
+                ];
+
+                for (let move of directions) {
+                    const nextSim = getNextState(current, move.dir);
+                    const occupied = getOccupiedTiles(nextSim);
+
+                    // Validate Next State Rules
+                    let valid = true;
+                    let nextBridges = [...current.bridges];
+                    let nextBroken = new Set(current.broken);
+
+                    for (let tile of occupied) {
+                        // Check Tile validity
+                        const char = getTileChar(tile.x, tile.y);
+                        if (char === ' ' || char === null) { valid = false; break; }
+                        
+                        // Bridge check
+                        if (char === 'B') {
+                            const brIdx = currentLevel.bridges.findIndex(b => b.x === tile.x && b.y === tile.y);
+                            if (brIdx !== -1 && !nextBridges[brIdx]) { valid = false; break; }
+                        }
+
+                        if (nextBroken.has(`${tile.x},${tile.y}`)) { valid = false; break; }
+                    }
+
+                    if (!valid) continue;
+
+                    // Fragile orange tile check
+                    if (nextSim.orient === ORIENTATION.STANDING) {
+                        const char = getTileChar(nextSim.x, nextSim.y);
+                        if (char === 'F') { valid = false; continue; }
+                    }
+
+                    // Switches Simulation
+                    currentLevel.switches.forEach(sw => {
+                        const isTouching = occupied.some(t => t.x === sw.x && t.y === sw.y);
+                        if (isTouching) {
+                            if (sw.type === 'soft' || (sw.type === 'heavy' && nextSim.orient === ORIENTATION.STANDING)) {
+                                sw.targetBridges.forEach(bIdx => {
+                                    if (bIdx >= 0 && bIdx < nextBridges.length) {
+                                        nextBridges[bIdx] = !nextBridges[bIdx];
+                                    }
+                                });
+                            }
+                        }
+                    });
+
+                    const neighborNode = {
+                        x: nextSim.x,
+                        y: nextSim.y,
+                        orient: nextSim.orient,
+                        bridges: nextBridges,
+                        broken: nextBroken,
+                        path: [...current.path, { dir: move.dir, label: move.label }],
+                        g: current.g + 1,
+                        h: 0
+                    };
+                    neighborNode.h = getHeuristic(neighborNode);
+
+                    openSet.push(neighborNode);
+                }
+            }
+
+            const endTime = performance.now();
+            const timeTaken = (endTime - startTime).toFixed(1);
+
+            if (solutionNode) {
+                aiSolutionPath = solutionNode.path;
+                aiCurrentStep = 0;
+
+                // Update UI Visualizer
+                document.getElementById('statPathLength').innerText = aiSolutionPath.length;
+                document.getElementById('statNodesExplored').innerText = nodesExplored;
+                document.getElementById('statSolveTime').innerText = `${timeTaken}ms`;
+
+                renderSolutionQueueUI();
+                setAIStatus("Solved", "bg-emerald-500/20 text-emerald-300 border-emerald-500/30");
+                
+                // Enable Play Controls
+                document.getElementById('btnPlay').disabled = false;
+                document.getElementById('btnStep').disabled = false;
+            } else {
+                setAIStatus("No Path Found", "bg-rose-500/20 text-rose-300 border-rose-500/30");
+                document.getElementById('solutionStepsContainer').innerHTML = `
+                    <div class="text-rose-400 text-center py-6 text-xs font-semibold">
+                        No valid solution path found for this layout.
+                    </div>
+                `;
+            }
+        }
+
+        // Render AI Solution Moves inside Panel
+        function renderSolutionQueueUI() {
+            const container = document.getElementById('solutionStepsContainer');
+            container.innerHTML = '';
+
+            aiSolutionPath.forEach((step, idx) => {
+                const item = document.createElement('div');
+                item.className = `px-3 py-1.5 rounded-lg flex items-center justify-between transition ${
+                    idx === aiCurrentStep 
+                        ? 'bg-indigo-600/40 border border-indigo-500/50 text-indigo-100 font-bold' 
+                        : 'bg-slate-900/40 text-slate-400 hover:bg-slate-800/40'
+                }`;
+                
+                let iconClass = 'fa-arrow-up';
+                if (step.label === 'DOWN') iconClass = 'fa-arrow-down';
+                if (step.label === 'LEFT') iconClass = 'fa-arrow-left';
+                if (step.label === 'RIGHT') iconClass = 'fa-arrow-right';
+
+                item.innerHTML = `
+                    <span class="text-[11px]">Step ${idx + 1}</span>
+                    <span class="flex items-center gap-1.5 text-xs">
+                        <i class="fa-solid ${iconClass}"></i> ${step.label}
+                    </span>
+                `;
+                container.appendChild(item);
+            });
+        }
+
+        function highlightCurrentAIStep() {
+            const container = document.getElementById('solutionStepsContainer');
+            const items = container.children;
+            for (let i = 0; i < items.length; i++) {
+                if (i === aiCurrentStep) {
+                    items[i].className = 'px-3 py-1.5 rounded-lg flex items-center justify-between bg-indigo-600/40 border border-indigo-500/50 text-indigo-100 font-bold';
+                    items[i].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                } else {
+                    items[i].className = 'px-3 py-1.5 rounded-lg flex items-center justify-between bg-slate-900/40 text-slate-400';
+                }
+            }
+        }
+
+        function executeAIStep() {
+            if (aiCurrentStep >= aiSolutionPath.length || isAnimating) return;
+
+            const step = aiSolutionPath[aiCurrentStep];
+            rollBlock(step.dir);
+            aiCurrentStep++;
+            highlightCurrentAIStep();
+
+            if (aiCurrentStep >= aiSolutionPath.length) {
+                stopAutoPlay();
+            }
+        }
+
+        function startAutoPlay() {
+            if (aiAutoPlayTimer || aiCurrentStep >= aiSolutionPath.length) return;
+            
+            document.getElementById('btnPlay').disabled = true;
+            document.getElementById('btnPause').disabled = false;
+
+            const interval = 300 / aiPlaySpeed;
+            aiAutoPlayTimer = setInterval(() => {
+                if (!isAnimating) {
+                    executeAIStep();
+                }
+            }, interval);
+        }
+
+        function stopAutoPlay() {
+            if (aiAutoPlayTimer) {
+                clearInterval(aiAutoPlayTimer);
+                aiAutoPlayTimer = null;
+            }
+            document.getElementById('btnPlay').disabled = aiSolutionPath.length === 0 || aiCurrentStep >= aiSolutionPath.length;
+            document.getElementById('btnPause').disabled = true;
+        }
+
+        function resetAISolverUI() {
+            aiSolutionPath = [];
+            aiCurrentStep = 0;
+            document.getElementById('statPathLength').innerText = '--';
+            document.getElementById('statNodesExplored').innerText = '--';
+            document.getElementById('statSolveTime').innerText = '--';
+            document.getElementById('btnPlay').disabled = true;
+            document.getElementById('btnStep').disabled = true;
+            document.getElementById('btnPause').disabled = true;
+            document.getElementById('solutionStepsContainer').innerHTML = `
+                <div class="text-slate-500 text-center py-6 text-xs italic">
+                    Click "Find Shortest Path" to generate move sequence.
+                </div>
+            `;
+            setAIStatus("Idle", "bg-slate-800 text-slate-400 border-slate-700");
+        }
+
+        function setAIStatus(text, badgeClasses) {
+            const tag = document.getElementById('aiStatusTag');
+            tag.innerText = text;
+            tag.className = `text-[10px] font-mono px-2 py-0.5 rounded border ${badgeClasses}`;
+        }
+
+        // --- UI & EVENT CONTROLS ---
+        function setupUIEventListeners() {
+            // Level Selector Dropdown
+            const select = document.getElementById('levelSelect');
+            LEVELS.forEach((lvl, idx) => {
+                const opt = document.createElement('option');
+                opt.value = idx;
+                opt.innerText = lvl.name;
+                select.appendChild(opt);
+            });
+            select.addEventListener('change', (e) => loadLevel(parseInt(e.target.value)));
+
+            // Reset Button
+            document.getElementById('btnReset').addEventListener('click', () => loadLevel(currentLevelIdx));
+
+            // AI Action Controls
+            document.getElementById('btnSolve').addEventListener('click', solveLevelAI);
+            document.getElementById('btnPlay').addEventListener('click', startAutoPlay);
+            document.getElementById('btnPause').addEventListener('click', stopAutoPlay);
+            document.getElementById('btnStep').addEventListener('click', () => {
+                stopAutoPlay();
+                executeAIStep();
+            });
+
+            // Speed Slider
+            const speedSlider = document.getElementById('speedSlider');
+            speedSlider.addEventListener('input', (e) => {
+                aiPlaySpeed = parseFloat(e.target.value);
+                document.getElementById('speedValue').innerText = `${aiPlaySpeed.toFixed(1)}x`;
+                if (aiAutoPlayTimer) {
+                    stopAutoPlay();
+                    startAutoPlay();
+                }
+            });
+
+            // Keyboard Arrow & WASD Navigation
+            window.addEventListener('keydown', (e) => {
+                if (isAnimating) return;
+
+                switch (e.key) {
+                    case 'ArrowUp':
+                    case 'w':
+                    case 'W':
+                        rollBlock(DIR.UP);
+                        break;
+                    case 'ArrowDown':
+                    case 's':
+                    case 'S':
+                        rollBlock(DIR.DOWN);
+                        break;
+                    case 'ArrowLeft':
+                    case 'a':
+                    case 'A':
+                        rollBlock(DIR.LEFT);
+                        break;
+                    case 'ArrowRight':
+                    case 'd':
+                    case 'D':
+                        rollBlock(DIR.RIGHT);
+                        break;
+                    case 'r':
+                    case 'R':
+                        loadLevel(currentLevelIdx);
+                        break;
+                }
+            });
+
+            // Mobile D-Pad Buttons
+            document.getElementById('btnUp').addEventListener('click', () => rollBlock(DIR.UP));
+            document.getElementById('btnDown').addEventListener('click', () => rollBlock(DIR.DOWN));
+            document.getElementById('btnLeft').addEventListener('click', () => rollBlock(DIR.LEFT));
+            document.getElementById('btnRight').addEventListener('click', () => rollBlock(DIR.RIGHT));
+
+            // Modal Dialog Actions
+            document.getElementById('btnModalRestart').addEventListener('click', () => {
+                hideModal();
+                loadLevel(currentLevelIdx);
+            });
+
+            document.getElementById('btnModalNext').addEventListener('click', () => {
+                hideModal();
+                const nextIdx = (currentLevelIdx + 1) % LEVELS.length;
+                document.getElementById('levelSelect').value = nextIdx;
+                loadLevel(nextIdx);
+            });
+        }
+
+        function updateUIStats() {
+            document.getElementById('moveCounter').innerText = moveCount;
+
+            const badge = document.getElementById('orientationBadge');
+            if (blockState.orient === ORIENTATION.STANDING) {
+                badge.innerText = 'Standing';
+                badge.className = 'text-xs font-semibold px-2.5 py-1 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 inline-block mt-0.5';
+            } else if (blockState.orient === ORIENTATION.HORIZONTAL) {
+                badge.innerText = 'Horizontal (X)';
+                badge.className = 'text-xs font-semibold px-2.5 py-1 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 inline-block mt-0.5';
+            } else if (blockState.orient === ORIENTATION.VERTICAL) {
+                badge.innerText = 'Vertical (Y)';
+                badge.className = 'text-xs font-semibold px-2.5 py-1 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30 inline-block mt-0.5';
+            }
+        }
+
+        function showModal(isWin, title, subtext) {
+            const overlay = document.getElementById('modalOverlay');
+            const card = document.getElementById('modalCard');
+            const iconContainer = document.getElementById('modalIconContainer');
+            const icon = document.getElementById('modalIcon');
+
+            document.getElementById('modalTitle').innerText = title;
+            document.getElementById('modalSubtext').innerText = subtext;
+
+            if (isWin) {
+                iconContainer.className = 'w-16 h-16 rounded-2xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 mx-auto flex items-center justify-center text-3xl mb-4 shadow-lg shadow-emerald-500/20';
+                icon.className = 'fa-solid fa-trophy';
+            } else {
+                iconContainer.className = 'w-16 h-16 rounded-2xl bg-rose-500/20 text-rose-400 border border-rose-500/30 mx-auto flex items-center justify-center text-3xl mb-4 shadow-lg shadow-rose-500/20';
+                icon.className = 'fa-solid fa-skull';
+            }
+
+            overlay.classList.remove('hidden');
+            setTimeout(() => {
+                card.classList.remove('scale-95', 'opacity-0');
+                card.classList.add('scale-100', 'opacity-100');
+            }, 10);
+        }
+
+        function hideModal() {
+            const overlay = document.getElementById('modalOverlay');
+            const card = document.getElementById('modalCard');
+
+            card.classList.remove('scale-100', 'opacity-100');
+            card.classList.add('scale-95', 'opacity-0');
+            setTimeout(() => {
+                overlay.classList.add('hidden');
+            }, 200);
+        }
+
+        // --- MAIN RENDER LOOP ---
+        function animateLoop() {
+            requestAnimationFrame(animateLoop);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+    </script>
+</body>
+</html>
