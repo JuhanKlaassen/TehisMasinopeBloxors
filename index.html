@@ -147,80 +147,69 @@
             <div class="h-8 w-[1px] bg-white/10"></div>
             <div class="text-center">
                 <span class="block text-[9px] uppercase tracking-wider text-slate-400 font-semibold">Orientation</span>
-                <span id="orientationBadge" class="text-xs font-semibold px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 inline-block">
-                    Standing
-                </span>
+                <span id="orientationBadge" class="text-xs font-semibold px-2.5 py-1 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 inline-block">Standing</span>
             </div>
             <div class="h-8 w-[1px] bg-white/10"></div>
-            <button id="btnReset" title="Reset Level (R)" class="glass-btn w-9 h-9 rounded-xl flex items-center justify-center text-slate-300 hover:text-white">
-                <i class="fa-solid fa-rotate-right"></i>
+            <button id="btnReset" class="glass-btn px-3.5 py-1.5 rounded-xl text-xs font-semibold text-slate-300 hover:text-white flex items-center gap-1.5">
+                <i class="fa-solid fa-rotate-left"></i> Reset
             </button>
         </div>
     </div>
 
-    <!-- AI Control & Analytics Side Panel (3D Mode) -->
-    <div id="aiSidePanel" class="absolute right-4 top-24 bottom-6 w-80 max-w-[calc(100vw-2rem)] z-20 flex flex-col gap-4 pointer-events-none">
-        <!-- AI Controls Glass Box -->
-        <div class="glass-panel rounded-2xl p-4 pointer-events-auto flex flex-col gap-3 shadow-2xl">
-            <div class="flex items-center justify-between">
-                <h2 class="text-sm font-bold tracking-wider text-indigo-300 uppercase flex items-center gap-2">
-                    <i class="fa-solid fa-brain text-purple-400"></i> AI Solver (A*)
-                </h2>
-                <span id="aiStatusTag" class="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">Idle</span>
+    <!-- AI SOLVER SIDE PANEL (3D Mode) -->
+    <div id="aiSidePanel" class="absolute top-24 right-4 z-20 w-80 max-h-[calc(100vh-120px)] glass-panel rounded-2xl p-4 flex flex-col pointer-events-auto shadow-2xl transition-all">
+        <div class="flex items-center justify-between pb-3 mb-3 border-b border-white/10">
+            <div class="flex items-center gap-2">
+                <i class="fa-solid fa-brain text-indigo-400 text-lg"></i>
+                <h3 class="font-bold text-sm text-slate-100">A* Solver Engine</h3>
             </div>
+            <span id="aiStatusTag" class="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">Idle</span>
+        </div>
 
-            <button id="btnSolve" class="w-full py-2.5 px-4 rounded-xl font-semibold bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white shadow-lg shadow-indigo-600/30 transition flex items-center justify-center gap-2 text-sm">
-                <i class="fa-solid fa-wand-magic-sparkles"></i>
-                <span>Find Shortest Path</span>
+        <!-- AI Control Action Buttons -->
+        <div class="grid grid-cols-2 gap-2 mb-3">
+            <button id="btnSolve" class="col-span-2 py-2 px-3 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/30 flex items-center justify-center gap-2 transition">
+                <i class="fa-solid fa-wand-magic-sparkles"></i> Compute Shortest Path
             </button>
+            <button id="btnPlay" disabled class="py-1.5 px-3 rounded-xl text-xs font-semibold glass-btn text-emerald-400 disabled:opacity-40 flex items-center justify-center gap-1.5">
+                <i class="fa-solid fa-play"></i> Auto Play
+            </button>
+            <button id="btnPause" disabled class="py-1.5 px-3 rounded-xl text-xs font-semibold glass-btn text-amber-400 disabled:opacity-40 flex items-center justify-center gap-1.5">
+                <i class="fa-solid fa-pause"></i> Pause
+            </button>
+            <button id="btnStep" disabled class="col-span-2 py-1.5 px-3 rounded-xl text-xs font-semibold glass-btn text-indigo-300 disabled:opacity-40 flex items-center justify-center gap-1.5">
+                <i class="fa-solid fa-forward-step"></i> Step Forward
+            </button>
+        </div>
 
-            <div class="grid grid-cols-3 gap-2">
-                <button id="btnPlay" disabled class="glass-btn py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5">
-                    <i class="fa-solid fa-play text-emerald-400"></i> Play
-                </button>
-                <button id="btnStep" disabled class="glass-btn py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5">
-                    <i class="fa-solid fa-forward-step text-amber-400"></i> Step
-                </button>
-                <button id="btnPause" disabled class="glass-btn py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5">
-                    <i class="fa-solid fa-pause text-rose-400"></i> Pause
-                </button>
+        <!-- Speed Controls -->
+        <div class="flex items-center justify-between bg-slate-900/60 p-2 rounded-xl mb-3 border border-white/5">
+            <span class="text-[11px] text-slate-400 font-medium">Speed:</span>
+            <input id="speedSlider" type="range" min="0.5" max="3" step="0.5" value="1" class="w-28 accent-indigo-500 cursor-pointer">
+            <span id="speedValue" class="text-[11px] font-mono font-bold text-indigo-300 w-8 text-right">1.0x</span>
+        </div>
+
+        <!-- AI Solver Stats -->
+        <div class="grid grid-cols-3 gap-2 mb-3 text-center">
+            <div class="bg-slate-900/40 p-2 rounded-xl border border-white/5">
+                <span class="block text-[9px] uppercase text-slate-500 font-bold">Steps</span>
+                <span id="statPathLength" class="text-sm font-bold font-mono text-indigo-300">--</span>
             </div>
-
-            <div class="mt-1">
-                <div class="flex justify-between text-[11px] text-slate-400 mb-1">
-                    <span>Speed</span>
-                    <span id="speedValue" class="font-mono text-indigo-300">1.0x</span>
-                </div>
-                <input id="speedSlider" type="range" min="0.5" max="3.0" step="0.25" value="1.0" class="w-full accent-indigo-500 bg-slate-800 rounded-lg cursor-pointer h-1.5">
+            <div class="bg-slate-900/40 p-2 rounded-xl border border-white/5">
+                <span class="block text-[9px] uppercase text-slate-500 font-bold">Nodes</span>
+                <span id="statNodesExplored" class="text-sm font-bold font-mono text-purple-300">--</span>
+            </div>
+            <div class="bg-slate-900/40 p-2 rounded-xl border border-white/5">
+                <span class="block text-[9px] uppercase text-slate-500 font-bold">Time</span>
+                <span id="statSolveTime" class="text-sm font-bold font-mono text-emerald-300">--</span>
             </div>
         </div>
 
-        <!-- Solver Analytics Box -->
-        <div class="glass-panel rounded-2xl p-4 pointer-events-auto flex-1 flex flex-col min-h-0 shadow-2xl">
-            <h3 class="text-xs font-bold tracking-wider text-slate-400 uppercase mb-3 flex items-center justify-between">
-                <span>Solver Analytics</span>
-                <i class="fa-solid fa-chart-simple text-slate-500"></i>
-            </h3>
-
-            <div class="grid grid-cols-3 gap-2 mb-3">
-                <div class="bg-slate-900/60 p-2 rounded-xl border border-white/5 text-center">
-                    <span class="block text-[9px] uppercase text-slate-400 font-semibold">Path</span>
-                    <span id="statPathLength" class="text-sm font-bold font-mono text-indigo-300">--</span>
-                </div>
-                <div class="bg-slate-900/60 p-2 rounded-xl border border-white/5 text-center">
-                    <span class="block text-[9px] uppercase text-slate-400 font-semibold">Nodes</span>
-                    <span id="statNodesExplored" class="text-sm font-bold font-mono text-purple-300">--</span>
-                </div>
-                <div class="bg-slate-900/60 p-2 rounded-xl border border-white/5 text-center">
-                    <span class="block text-[9px] uppercase text-slate-400 font-semibold">Time</span>
-                    <span id="statSolveTime" class="text-sm font-bold font-mono text-emerald-300">--</span>
-                </div>
-            </div>
-
-            <span class="text-[10px] uppercase tracking-wider text-slate-400 font-semibold mb-1.5 block">Move Solution Queue</span>
-            <div id="solutionStepsContainer" class="flex-1 overflow-y-auto rounded-xl bg-slate-950/50 p-2 border border-white/5 font-mono text-xs space-y-1">
+        <!-- Solution Steps Queue -->
+        <div class="flex-1 min-h-[140px] max-h-[220px] overflow-y-auto pr-1">
+            <div id="solutionStepsContainer" class="flex flex-col gap-1">
                 <div class="text-slate-500 text-center py-6 text-xs italic">
-                    Click "Find Shortest Path" to generate move sequence.
+                    Click "Compute Shortest Path" to generate move sequence.
                 </div>
             </div>
         </div>
@@ -230,15 +219,24 @@
     <div id="editorOverlay" class="fixed inset-0 z-30 bg-slate-950/95 flex flex-col hidden pt-20 pb-4 px-4">
         
         <!-- Blueprint Top Toolbar -->
-        <div class="glass-panel rounded-2xl p-3 mb-3 flex flex-wrap items-center justify-between gap-4 shadow-2xl">
-            <!-- Grid Dimensions -->
+        <div class="glass-panel rounded-2xl p-3 mb-3 flex flex-wrap items-center justify-between gap-3 shadow-2xl">
+            <!-- Grid Dimensions & Zoom -->
             <div class="flex items-center gap-3">
-                <span class="text-xs font-bold text-slate-300 uppercase tracking-wider"><i class="fa-solid fa-ruler-combined text-indigo-400 mr-1"></i> Grid Size:</span>
+                <span class="text-xs font-bold text-slate-300 uppercase tracking-wider"><i class="fa-solid fa-ruler-combined text-indigo-400 mr-1"></i> Grid:</span>
                 <div class="flex items-center gap-1.5">
-                    <input id="editRows" type="number" min="5" max="20" value="8" class="w-14 bg-slate-900 text-center border border-slate-700 rounded-lg py-1 text-xs font-mono font-bold text-indigo-200">
+                    <input id="editRows" type="number" min="5" max="20" value="10" class="w-12 bg-slate-900 text-center border border-slate-700 rounded-lg py-1 text-xs font-mono font-bold text-indigo-200">
                     <span class="text-slate-500 text-xs">x</span>
-                    <input id="editCols" type="number" min="5" max="20" value="10" class="w-14 bg-slate-900 text-center border border-slate-700 rounded-lg py-1 text-xs font-mono font-bold text-indigo-200">
-                    <button id="btnResizeGrid" class="glass-btn px-3 py-1 rounded-lg text-xs font-semibold text-slate-300 hover:text-white">Apply</button>
+                    <input id="editCols" type="number" min="5" max="20" value="12" class="w-12 bg-slate-900 text-center border border-slate-700 rounded-lg py-1 text-xs font-mono font-bold text-indigo-200">
+                    <button id="btnResizeGrid" class="glass-btn px-2.5 py-1 rounded-lg text-xs font-semibold text-slate-300 hover:text-white">Apply</button>
+                </div>
+
+                <div class="h-6 w-[1px] bg-white/10 hidden sm:block"></div>
+
+                <!-- Zoom Controls for Large Grids -->
+                <div class="flex items-center gap-1">
+                    <button id="btnZoomOut" class="glass-btn w-7 h-7 rounded-lg text-xs flex items-center justify-center text-slate-300" title="Zoom Out"><i class="fa-solid fa-minus"></i></button>
+                    <span id="zoomLevelText" class="text-xs font-mono text-indigo-300 px-1 font-bold">100%</span>
+                    <button id="btnZoomIn" class="glass-btn w-7 h-7 rounded-lg text-xs flex items-center justify-center text-slate-300" title="Zoom In"><i class="fa-solid fa-plus"></i></button>
                 </div>
             </div>
 
@@ -248,16 +246,16 @@
                     <span class="font-mono text-[10px] px-1 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">1</span> Void
                 </button>
                 <button data-tool="." class="palette-btn glass-btn px-2.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 text-slate-200" title="Shortcut: 2">
-                    <span class="font-mono text-[10px] px-1 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">2</span> Solid Tile
+                    <span class="font-mono text-[10px] px-1 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">2</span> Solid
                 </button>
                 <button data-tool="F" class="palette-btn glass-btn px-2.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 text-orange-400" title="Shortcut: 3">
                     <span class="font-mono text-[10px] px-1 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">3</span> Fragile
                 </button>
                 <button data-tool="O" class="palette-btn glass-btn px-2.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 text-cyan-400" title="Shortcut: 4">
-                    <span class="font-mono text-[10px] px-1 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">4</span> Soft Switch
+                    <span class="font-mono text-[10px] px-1 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">4</span> Soft
                 </button>
                 <button data-tool="X" class="palette-btn glass-btn px-2.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 text-pink-400" title="Shortcut: 5">
-                    <span class="font-mono text-[10px] px-1 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">5</span> Heavy Switch
+                    <span class="font-mono text-[10px] px-1 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">5</span> Heavy
                 </button>
                 <button data-tool="B" class="palette-btn glass-btn px-2.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 text-slate-400" title="Shortcut: 6">
                     <span class="font-mono text-[10px] px-1 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">6</span> Bridge
@@ -270,19 +268,27 @@
                 </button>
             </div>
 
-            <!-- Blueprint Actions -->
+            <!-- Blueprint Export / Import / Actions -->
             <div class="flex items-center gap-2">
+                <button id="btnExportJSON" class="glass-btn px-3 py-1.5 rounded-xl text-xs font-semibold text-indigo-300 hover:text-indigo-200" title="Export level configuration to JSON clipboard">
+                    <i class="fa-solid fa-file-export mr-1"></i> Export
+                </button>
+                <button id="btnImportJSON" class="glass-btn px-3 py-1.5 rounded-xl text-xs font-semibold text-purple-300 hover:text-purple-200" title="Import level from JSON code">
+                    <i class="fa-solid fa-file-import mr-1"></i> Import
+                </button>
                 <button id="btnClearGrid" class="glass-btn px-3 py-1.5 rounded-xl text-xs font-semibold text-rose-400 hover:text-rose-300">Clear</button>
                 <button id="btnTestLevel" class="py-1.5 px-4 rounded-xl text-xs font-bold bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-lg shadow-emerald-600/30 flex items-center gap-1.5">
-                    <i class="fa-solid fa-play"></i> Test & Play 3D
+                    <i class="fa-solid fa-play"></i> Test 3D
                 </button>
             </div>
         </div>
 
-        <!-- Huge Blueprint Canvas Viewport -->
-        <div id="blueprintViewport" class="flex-1 relative bg-slate-950 rounded-2xl border border-indigo-500/20 overflow-auto flex items-center justify-center p-8 shadow-inner">
-            <div id="blueprintGridContainer" class="relative bg-slate-900/90 rounded-xl p-4 border border-indigo-500/30 shadow-2xl transition-transform duration-100 origin-center">
-                <!-- Large 2D Interactive Matrix Grid Generated Dynamically -->
+        <!-- Scrollable Viewport Container for Large Maps -->
+        <div id="blueprintViewport" class="flex-1 relative bg-slate-950 rounded-2xl border border-indigo-500/20 overflow-auto flex items-start justify-start p-8 shadow-inner">
+            <div id="blueprintScaleWrapper" class="m-auto transition-transform duration-150 origin-top-left">
+                <div id="blueprintGridContainer" class="relative bg-slate-900/90 rounded-xl p-4 border border-indigo-500/30 shadow-2xl">
+                    <!-- Large 2D Interactive Matrix Grid Generated Dynamically -->
+                </div>
             </div>
         </div>
     </div>
@@ -343,13 +349,14 @@
         let activeBridges = [];
         let orangeTilesBroken = new Set();
 
-        // Level Editor Data Matrix
-        let editorRows = 8;
-        let editorCols = 10;
+        // Level Editor Data Matrix & Blueprint Zoom
+        let editorRows = 10;
+        let editorCols = 12;
         let editorGrid = [];
         let activeTool = '.';
         let isMouseDownPainting = false;
         let customLevelCounter = 1;
+        let blueprintZoom = 1.0;
 
         const PRESET_LEVELS = [
             {
@@ -410,7 +417,7 @@
             },
             {
                 id: 5,
-                name: "Stage 5: Master Challenge",
+                name: "Stage 5: Soft & Fragile",
                 start: { x: 0, y: 1 },
                 grid: [
                     "......  ",
@@ -420,6 +427,100 @@
                 ],
                 switches: [{ x: 1, y: 1, type: 'soft', targetBridges: [0] }],
                 bridges: [{ x: 4, y: 1, active: false }]
+            },
+            {
+                id: 6,
+                name: "Stage 6: The Dual Gate",
+                start: { x: 1, y: 1 },
+                grid: [
+                    "......  ...",
+                    ".O....  .H.",
+                    "......  ...",
+                    "   ....... ",
+                    "   ...X... "
+                ],
+                switches: [
+                    { x: 1, y: 1, type: 'soft', targetBridges: [0] },
+                    { x: 6, y: 4, type: 'heavy', targetBridges: [1] }
+                ],
+                bridges: [
+                    { x: 6, y: 1, active: false },
+                    { x: 7, y: 1, active: false }
+                ]
+            },
+            {
+                id: 7,
+                name: "Stage 7: Narrow Ridge",
+                start: { x: 0, y: 2 },
+                grid: [
+                    "   .....   ",
+                    "   .F.F.   ",
+                    "....F.F....",
+                    "...   ..H..",
+                    "...   ....."
+                ],
+                switches: [],
+                bridges: []
+            },
+            {
+                id: 8,
+                name: "Stage 8: Switch Maze",
+                start: { x: 1, y: 1 },
+                grid: [
+                    ".......  ....",
+                    ".X...O.  .H..",
+                    ".......  ....",
+                    "  ....F....  ",
+                    "  ....X....  "
+                ],
+                switches: [
+                    { x: 1, y: 1, type: 'heavy', targetBridges: [0] },
+                    { x: 5, y: 1, type: 'soft', targetBridges: [1] },
+                    { x: 6, y: 4, type: 'heavy', targetBridges: [0, 1] }
+                ],
+                bridges: [
+                    { x: 7, y: 1, active: false },
+                    { x: 8, y: 1, active: false }
+                ]
+            },
+            {
+                id: 9,
+                name: "Stage 9: Fragile Bridge",
+                start: { x: 1, y: 2 },
+                grid: [
+                    ".....   .....",
+                    ".O.F.   .F.F.",
+                    ".....   ..H..",
+                    " ...FFF...   ",
+                    " ...FFF...   "
+                ],
+                switches: [{ x: 1, y: 1, type: 'soft', targetBridges: [0, 1] }],
+                bridges: [
+                    { x: 5, y: 1, active: false },
+                    { x: 6, y: 1, active: false }
+                ]
+            },
+            {
+                id: 10,
+                name: "Stage 10: Grand Master",
+                start: { x: 1, y: 1 },
+                grid: [
+                    "........  ..... ",
+                    ".X..F.O.  .FFF. ",
+                    "........  .F.H. ",
+                    "   ...........  ",
+                    "   .F..X..F...  ",
+                    "   ...........  "
+                ],
+                switches: [
+                    { x: 1, y: 1, type: 'heavy', targetBridges: [0] },
+                    { x: 6, y: 1, type: 'soft', targetBridges: [1] },
+                    { x: 7, y: 4, type: 'heavy', targetBridges: [0, 1] }
+                ],
+                bridges: [
+                    { x: 8, y: 1, active: false },
+                    { x: 9, y: 1, active: false }
+                ]
             }
         ];
 
@@ -852,12 +953,86 @@
             renderEditorGridUI();
         }
 
+        function initBlueprintEditor() {
+            renderEditorGridUI();
+            applyBlueprintZoom();
+        }
+
         function renderEditorGridUI() {
             const container = document.getElementById('blueprintGridContainer');
             if (!container) return;
 
             renderBlueprintCanvasGrid();
         }
+
+        function renderBlueprintCanvasGrid() {
+            const container = document.getElementById('blueprintGridContainer');
+            if (!container) return;
+
+            container.innerHTML = '';
+            
+            // Grid container table layout
+            const gridEl = document.createElement('div');
+            gridEl.className = 'flex flex-col gap-1 select-none';
+
+            // Top Column Headers
+            const headerRow = document.createElement('div');
+            headerRow.className = 'flex gap-1 mb-1 items-center';
+            const cornerLabel = document.createElement('div');
+            cornerLabel.className = 'w-7 h-7 flex items-center justify-center text-[10px] font-mono text-slate-600 font-bold';
+            cornerLabel.innerText = '#';
+            headerRow.appendChild(cornerLabel);
+
+            for (let c = 0; c < editorCols; c++) {
+                const colLabel = document.createElement('div');
+                colLabel.className = 'w-14 text-center text-[10px] font-mono text-slate-500 font-bold';
+                colLabel.innerText = c + 1;
+                headerRow.appendChild(colLabel);
+            }
+            gridEl.appendChild(headerRow);
+
+            // Matrix Rows
+            for (let r = 0; r < editorRows; r++) {
+                const rowEl = document.createElement('div');
+                rowEl.className = 'flex gap-1 items-center';
+
+                // Row Number Header
+                const rowLabel = document.createElement('div');
+                rowLabel.className = 'w-7 text-right pr-2 text-[10px] font-mono text-slate-500 font-bold';
+                rowLabel.innerText = r + 1;
+                rowEl.appendChild(rowLabel);
+
+                for (let c = 0; c < editorCols; c++) {
+                    const char = editorGrid[r][c];
+                    const cell = document.createElement('div');
+                    cell.className = `blueprint-cell rounded-xl font-bold font-mono text-sm border shadow-sm ${getCellBgClass(char)}`;
+                    cell.innerHTML = getCellIcon(char);
+
+                    // Paint Mouse Interactions
+                    cell.addEventListener('mousedown', (e) => {
+                        e.preventDefault();
+                        isMouseDownPainting = true;
+                        paintCell(r, c);
+                    });
+
+                    cell.addEventListener('mouseenter', () => {
+                        if (isMouseDownPainting) {
+                            paintCell(r, c);
+                        }
+                    });
+
+                    rowEl.appendChild(cell);
+                }
+                gridEl.appendChild(rowEl);
+            }
+
+            container.appendChild(gridEl);
+        }
+
+        // Global mouseup release to stop painting
+        window.addEventListener('mouseup', () => {
+            isMouseDownPainting = false;
+        });
 
         function paintCell(r, c) {
             const tool = typeof activeTool !== 'undefined' ? activeTool : '.';
@@ -1146,19 +1321,27 @@
 
         // --- UI CONTROLS & EVENT LISTENERS ---
         function setupUIEventListeners() {
+            // Helper for safe event listener binding
+            const addListener = (id, event, fn) => {
+                const el = document.getElementById(id);
+                if (el) el.addEventListener(event, fn);
+            };
+
             // Level Selector Dropdown
             const select = document.getElementById('levelSelect');
-            select.innerHTML = '';
-            PRESET_LEVELS.forEach((lvl, i) => {
-                const opt = document.createElement('option');
-                opt.value = i;
-                opt.innerText = lvl.name;
-                select.appendChild(opt);
-            });
+            if (select) {
+                select.innerHTML = '';
+                PRESET_LEVELS.forEach((lvl, i) => {
+                    const opt = document.createElement('option');
+                    opt.value = i;
+                    opt.innerText = lvl.name;
+                    select.appendChild(opt);
+                });
 
-            select.addEventListener('change', (e) => {
-                loadLevel(parseInt(e.target.value));
-            });
+                select.addEventListener('change', (e) => {
+                    loadLevel(parseInt(e.target.value));
+                });
+            }
 
             // Tab Switching (3D Play vs 2D Map Builder)
             const tab3D = document.getElementById('tab3D');
@@ -1168,24 +1351,28 @@
             const aiSidePanel = document.getElementById('aiSidePanel');
             const touchDPad = document.getElementById('touchDPad');
 
-            tab3D.addEventListener('click', () => {
-                tab3D.className = "px-4 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 text-white shadow-md transition flex items-center gap-2";
-                tabEditor.className = "px-4 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition flex items-center gap-2";
-                editorOverlay.classList.add('hidden');
-                gameControlsBar.classList.remove('hidden');
-                aiSidePanel.classList.remove('hidden');
-                touchDPad.classList.remove('hidden');
-            });
+            if (tab3D) {
+                tab3D.addEventListener('click', () => {
+                    tab3D.className = "px-4 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 text-white shadow-md transition flex items-center gap-2";
+                    if (tabEditor) tabEditor.className = "px-4 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition flex items-center gap-2";
+                    if (editorOverlay) editorOverlay.classList.add('hidden');
+                    if (gameControlsBar) gameControlsBar.classList.remove('hidden');
+                    if (aiSidePanel) aiSidePanel.classList.remove('hidden');
+                    if (touchDPad) touchDPad.classList.remove('hidden');
+                });
+            }
 
-            tabEditor.addEventListener('click', () => {
-                tabEditor.className = "px-4 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 text-white shadow-md transition flex items-center gap-2";
-                tab3D.className = "px-4 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition flex items-center gap-2";
-                editorOverlay.classList.remove('hidden');
-                gameControlsBar.classList.add('hidden');
-                aiSidePanel.classList.add('hidden');
-                touchDPad.classList.add('hidden');
-                initBlueprintEditor();
-            });
+            if (tabEditor) {
+                tabEditor.addEventListener('click', () => {
+                    tabEditor.className = "px-4 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 text-white shadow-md transition flex items-center gap-2";
+                    if (tab3D) tab3D.className = "px-4 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition flex items-center gap-2";
+                    if (editorOverlay) editorOverlay.classList.remove('hidden');
+                    if (gameControlsBar) gameControlsBar.classList.add('hidden');
+                    if (aiSidePanel) aiSidePanel.classList.add('hidden');
+                    if (touchDPad) touchDPad.classList.add('hidden');
+                    initBlueprintEditor();
+                });
+            }
 
             // Blueprint Palette Selection Buttons
             const paletteBtns = document.querySelectorAll('.palette-btn');
@@ -1199,7 +1386,7 @@
 
             // Shortcut keys 1-8 for palette swapping
             window.addEventListener('keydown', (e) => {
-                if (editorOverlay.classList.contains('hidden')) return;
+                if (!editorOverlay || editorOverlay.classList.contains('hidden')) return;
                 const toolKeys = {
                     '1': ' ',
                     '2': '.',
@@ -1210,48 +1397,58 @@
                     '7': 'S',
                     '8': 'H'
                 };
-                if (toolKeys[e.key]) {
+                if (toolKeys[e.key] !== undefined) {
                     activeTool = toolKeys[e.key];
                     paletteBtns.forEach(b => {
-                        if (b.getAttribute('data-tool') === activeTool) {
-                            b.classList.add('active-tool');
-                        } else {
-                            b.classList.remove('active-tool');
-                        }
+                        b.classList.toggle('active-tool', b.getAttribute('data-tool') === activeTool);
                     });
                 }
             });
 
-            // Blueprint Grid Controls
-            document.getElementById('btnResizeGrid').addEventListener('click', () => {
-                editorRows = parseInt(document.getElementById('editRows').value) || 8;
-                editorCols = parseInt(document.getElementById('editCols').value) || 10;
-                initBlueprintEditorGridData();
-                renderBlueprintCanvasGrid();
+            // Blueprint Grid Controls & Zooming
+            addListener('btnResizeGrid', 'click', () => {
+                const rEl = document.getElementById('editRows');
+                const cEl = document.getElementById('editCols');
+                editorRows = Math.min(Math.max(parseInt(rEl ? rEl.value : 8) || 8, 5), 20);
+                editorCols = Math.min(Math.max(parseInt(cEl ? cEl.value : 10) || 10, 5), 20);
+                initEditorGrid(editorRows, editorCols);
             });
 
-            document.getElementById('btnClearGrid').addEventListener('click', () => {
-                initBlueprintEditorGridData();
-                renderBlueprintCanvasGrid();
+            addListener('btnZoomIn', 'click', () => {
+                blueprintZoom = Math.min(blueprintZoom + 0.15, 2.0);
+                applyBlueprintZoom();
             });
 
-            document.getElementById('btnTestLevel').addEventListener('click', compileCustomLevelAndPlay);
+            addListener('btnZoomOut', 'click', () => {
+                blueprintZoom = Math.max(blueprintZoom - 0.15, 0.5);
+                applyBlueprintZoom();
+            });
+
+            // Export and Import JSON Level Configuration
+            addListener('btnExportJSON', 'click', exportLevelToClipboard);
+            addListener('btnImportJSON', 'click', importLevelFromJSONPrompt);
+            addListener('btnClearGrid', 'click', () => initEditorGrid(editorRows, editorCols));
+            addListener('btnTestLevel', 'click', compileCustomLevelAndPlay);
 
             // Controls & Reset
-            document.getElementById('btnReset').addEventListener('click', () => loadLevel(currentLevelIdx));
-            document.getElementById('btnSolve').addEventListener('click', solveLevelAI);
-            document.getElementById('btnPlay').addEventListener('click', startAutoPlay);
-            document.getElementById('btnPause').addEventListener('click', stopAutoPlay);
-            document.getElementById('btnStep').addEventListener('click', () => { stopAutoPlay(); executeAIStep(); });
+            addListener('btnReset', 'click', () => loadLevel(currentLevelIdx));
+            addListener('btnSolve', 'click', solveLevelAI);
+            addListener('btnPlay', 'click', startAutoPlay);
+            addListener('btnPause', 'click', stopAutoPlay);
+            addListener('btnStep', 'click', () => { stopAutoPlay(); executeAIStep(); });
 
-            document.getElementById('speedSlider').addEventListener('input', (e) => {
-                aiPlaySpeed = parseFloat(e.target.value);
-                document.getElementById('speedValue').innerText = `${aiPlaySpeed.toFixed(1)}x`;
-                if (aiAutoPlayTimer) { stopAutoPlay(); startAutoPlay(); }
-            });
+            const speedSlider = document.getElementById('speedSlider');
+            if (speedSlider) {
+                speedSlider.addEventListener('input', (e) => {
+                    aiPlaySpeed = parseFloat(e.target.value);
+                    const speedVal = document.getElementById('speedValue');
+                    if (speedVal) speedVal.innerText = `${aiPlaySpeed.toFixed(1)}x`;
+                    if (aiAutoPlayTimer) { stopAutoPlay(); startAutoPlay(); }
+                });
+            }
 
             window.addEventListener('keydown', (e) => {
-                if (!editorOverlay.classList.contains('hidden') || isAnimating) return;
+                if ((editorOverlay && !editorOverlay.classList.contains('hidden')) || isAnimating) return;
                 switch (e.key) {
                     case 'ArrowUp': case 'w': case 'W': rollBlock(DIR.UP); break;
                     case 'ArrowDown': case 's': case 'S': rollBlock(DIR.DOWN); break;
@@ -1261,165 +1458,89 @@
                 }
             });
 
-            document.getElementById('btnUp').addEventListener('click', () => rollBlock(DIR.UP));
-            document.getElementById('btnDown').addEventListener('click', () => rollBlock(DIR.DOWN));
-            document.getElementById('btnLeft').addEventListener('click', () => rollBlock(DIR.LEFT));
-            document.getElementById('btnRight').addEventListener('click', () => rollBlock(DIR.RIGHT));
+            addListener('btnUp', 'click', () => rollBlock(DIR.UP));
+            addListener('btnDown', 'click', () => rollBlock(DIR.DOWN));
+            addListener('btnLeft', 'click', () => rollBlock(DIR.LEFT));
+            addListener('btnRight', 'click', () => rollBlock(DIR.RIGHT));
 
-            document.getElementById('btnModalRestart').addEventListener('click', () => { hideModal(); loadLevel(currentLevelIdx); });
-            document.getElementById('btnModalNext').addEventListener('click', () => {
+            addListener('btnModalRestart', 'click', () => { hideModal(); loadLevel(currentLevelIdx); });
+            addListener('btnModalNext', 'click', () => {
                 hideModal();
                 const nextIdx = (currentLevelIdx + 1) % PRESET_LEVELS.length;
-                document.getElementById('levelSelect').value = nextIdx;
+                const lvlSel = document.getElementById('levelSelect');
+                if (lvlSel) lvlSel.value = nextIdx;
                 loadLevel(nextIdx);
             });
         }
 
-        // --- BLUEPRINT LEVEL BUILDER LOGIC ---
-        function initBlueprintEditor() {
-            if (editorGrid.length === 0) {
-                initBlueprintEditorGridData();
-            }
-            renderBlueprintCanvasGrid();
+        function applyBlueprintZoom() {
+            const wrapper = document.getElementById('blueprintScaleWrapper');
+            const zoomText = document.getElementById('zoomLevelText');
+            if (wrapper) wrapper.style.transform = `scale(${blueprintZoom})`;
+            if (zoomText) zoomText.innerText = `${Math.round(blueprintZoom * 100)}%`;
         }
 
-        function initBlueprintEditorGridData() {
-            editorGrid = [];
-            for (let r = 0; r < editorRows; r++) {
-                let row = [];
-                for (let c = 0; c < editorCols; c++) {
-                    row.push(' '); // Start all void
+        function exportLevelToClipboard() {
+            const compiled = getCompiledBlueprintData();
+            if (!compiled) return;
+
+            const jsonStr = JSON.stringify(compiled, null, 2);
+            
+            // execCommand copy fallback for iframe compatibility
+            const tempArea = document.createElement('textarea');
+            tempArea.value = jsonStr;
+            document.body.appendChild(tempArea);
+            tempArea.select();
+            try {
+                document.execCommand('copy');
+                alert("Level configuration copied to clipboard successfully!");
+            } catch (err) {
+                alert("Copied Level JSON:\n\n" + jsonStr);
+            }
+            document.body.removeChild(tempArea);
+        }
+
+        function importLevelFromJSONPrompt() {
+            const jsonStr = prompt("Paste your custom Bloxorz level JSON configuration here:");
+            if (!jsonStr) return;
+
+            try {
+                const lvl = JSON.parse(jsonStr);
+                if (!lvl.grid || !lvl.start) {
+                    alert("Invalid level data! Level must contain grid strings and a start position.");
+                    return;
                 }
-                editorGrid.push(row);
-            }
-            // Add default start & goal for convenience
-            if (editorRows > 3 && editorCols > 5) {
-                editorGrid[1][1] = 'S';
-                editorGrid[1][2] = '.';
-                editorGrid[1][3] = '.';
-                editorGrid[1][4] = 'H';
-            }
-        }
 
-        function renderBlueprintCanvasGrid() {
-            const container = document.getElementById('blueprintGridContainer');
-            container.innerHTML = '';
+                editorRows = lvl.grid.length;
+                editorCols = Math.max(...lvl.grid.map(r => r.length));
+                document.getElementById('editRows').value = editorRows;
+                document.getElementById('editCols').value = editorCols;
 
-            const table = document.createElement('div');
-            table.className = "flex flex-col gap-1";
-
-            // Header row coordinates
-            const headerRow = document.createElement('div');
-            headerRow.className = "flex gap-1 mb-1";
-            headerRow.appendChild(createCoordinateLabel('#'));
-            for (let c = 0; c < editorCols; c++) {
-                headerRow.appendChild(createCoordinateLabel(c));
-            }
-            table.appendChild(headerRow);
-
-            for (let r = 0; r < editorRows; r++) {
-                const rowDiv = document.createElement('div');
-                rowDiv.className = "flex gap-1";
-                
-                // Row index header label
-                rowDiv.appendChild(createCoordinateLabel(r));
-
-                for (let c = 0; c < editorCols; c++) {
-                    const char = editorGrid[r][c];
-                    const cell = document.createElement('div');
-                    cell.className = `blueprint-cell rounded-xl ${getBlueprintTileStyle(char)}`;
-                    cell.dataset.row = r;
-                    cell.dataset.col = c;
-                    cell.innerHTML = getBlueprintTileIcon(char);
-
-                    // Mouse drag painting listeners
-                    cell.addEventListener('mousedown', (e) => {
-                        e.preventDefault();
-                        isMouseDownPainting = true;
-                        paintCell(r, c, cell);
-                    });
-
-                    cell.addEventListener('mouseenter', () => {
-                        if (isMouseDownPainting) {
-                            paintCell(r, c, cell);
-                        }
-                    });
-
-                    rowDiv.appendChild(cell);
-                }
-                table.appendChild(rowDiv);
-            }
-
-            container.appendChild(table);
-
-            window.addEventListener('mouseup', () => {
-                isMouseDownPainting = false;
-            });
-        }
-
-        function createCoordinateLabel(text) {
-            const label = document.createElement('div');
-            label.className = "w-[56px] h-6 flex items-center justify-center font-mono text-[10px] text-slate-500 font-bold uppercase";
-            label.innerText = text;
-            return label;
-        }
-
-        function paintCell(r, c, cellElem) {
-            // Guarantee single start position
-            if (activeTool === 'S') {
-                for (let row = 0; row < editorRows; row++) {
-                    for (let col = 0; col < editorCols; col++) {
-                        if (editorGrid[row][col] === 'S') editorGrid[row][col] = '.';
+                editorGrid = [];
+                for (let r = 0; r < editorRows; r++) {
+                    let row = [];
+                    const line = lvl.grid[r] || "";
+                    for (let c = 0; c < editorCols; c++) {
+                        let char = line[c] || ' ';
+                        if (lvl.start && lvl.start.x === c && lvl.start.y === r) char = 'S';
+                        row.push(char);
                     }
+                    editorGrid.push(row);
                 }
-            }
 
-            // Guarantee single target goal
-            if (activeTool === 'H') {
-                for (let row = 0; row < editorRows; row++) {
-                    for (let col = 0; col < editorCols; col++) {
-                        if (editorGrid[row][col] === 'H') editorGrid[row][col] = '.';
-                    }
-                }
-            }
-
-            editorGrid[r][c] = activeTool;
-            renderBlueprintCanvasGrid();
-        }
-
-        function getBlueprintTileStyle(char) {
-            switch (char) {
-                case '.': return 'bg-slate-800 text-slate-200 border-slate-700 shadow-md';
-                case 'F': return 'bg-orange-950/80 text-orange-400 border-orange-700/60 shadow-md shadow-orange-950/40';
-                case 'O': return 'bg-cyan-950/80 text-cyan-300 border-cyan-700/60 shadow-md shadow-cyan-950/40';
-                case 'X': return 'bg-pink-950/80 text-pink-300 border-pink-700/60 shadow-md shadow-pink-950/40';
-                case 'B': return 'bg-slate-700/80 text-slate-300 border-slate-600 shadow-md';
-                case 'S': return 'bg-indigo-950/90 text-indigo-300 border-indigo-500 shadow-lg shadow-indigo-950/60';
-                case 'H': return 'bg-emerald-950/90 text-emerald-300 border-emerald-500 shadow-lg shadow-emerald-950/60';
-                default: return 'bg-slate-950/60 text-slate-700 border-white/5';
+                renderBlueprintCanvasGrid();
+                alert(`Loaded level "${lvl.name || 'Custom'}" into editor blueprint!`);
+            } catch (err) {
+                alert("Failed to parse JSON level string. Check formatting.");
             }
         }
 
-        function getBlueprintTileIcon(char) {
-            switch (char) {
-                case '.': return '<i class="fa-solid fa-square text-slate-600 text-xs"></i>';
-                case 'F': return '<i class="fa-solid fa-border-none text-orange-400 text-lg"></i>';
-                case 'O': return '<i class="fa-regular fa-circle-dot text-cyan-400 text-lg"></i>';
-                case 'X': return '<i class="fa-solid fa-xmark text-pink-400 text-xl font-black"></i>';
-                case 'B': return '<i class="fa-solid fa-bars text-slate-400 text-lg"></i>';
-                case 'S': return '<i class="fa-solid fa-cube text-indigo-400 text-xl"></i>';
-                case 'H': return '<i class="fa-solid fa-bullseye text-emerald-400 text-xl"></i>';
-                default: return '';
-            }
-        }
-
-        function compileCustomLevelAndPlay() {
+        function getCompiledBlueprintData() {
             let startPos = null;
             let goalPos = null;
             let switches = [];
             let bridges = [];
 
-            // Convert editorGrid array to level map format
             let gridStrings = [];
             for (let r = 0; r < editorRows; r++) {
                 let rowStr = "";
@@ -1447,22 +1568,21 @@
                 gridStrings.push(rowStr);
             }
 
-            // Attach switches to all bridges created
             if (bridges.length > 0) {
                 const bridgeIndices = bridges.map((_, i) => i);
                 switches.forEach(sw => sw.targetBridges = bridgeIndices);
             }
 
             if (!startPos) {
-                alert("Please place a Start Position (7) on the blueprint before playing!");
-                return;
+                alert("Please place a Start Position (7) on the blueprint!");
+                return null;
             }
             if (!goalPos) {
-                alert("Please place a Goal Hole Target (8) on the blueprint before playing!");
-                return;
+                alert("Please place a Goal Hole Target (8) on the blueprint!");
+                return null;
             }
 
-            const customLevel = {
+            return {
                 id: PRESET_LEVELS.length + 1,
                 name: `Custom Map #${customLevelCounter++}`,
                 start: startPos,
@@ -1470,6 +1590,11 @@
                 switches: switches,
                 bridges: bridges
             };
+        }
+
+        function compileCustomLevelAndPlay() {
+            const customLevel = getCompiledBlueprintData();
+            if (!customLevel) return;
 
             PRESET_LEVELS.push(customLevel);
             const select = document.getElementById('levelSelect');
@@ -1479,7 +1604,6 @@
             select.appendChild(opt);
             select.value = PRESET_LEVELS.length - 1;
 
-            // Switch to 3D View and run level
             document.getElementById('tab3D').click();
             loadLevel(PRESET_LEVELS.length - 1);
         }
