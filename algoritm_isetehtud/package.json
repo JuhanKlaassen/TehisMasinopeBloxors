@@ -1,0 +1,8 @@
+{
+  "name": "bloxorz",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node main.ts"
+  }
+}
