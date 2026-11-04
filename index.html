@@ -169,17 +169,20 @@
         <!-- ALGORITHM TOGGLE SWITCH -->
         <div class="mb-3 bg-slate-900/90 p-1.5 rounded-xl border border-white/10">
             <label class="block text-[10px] font-bold text-slate-400 mb-1 px-1 uppercase tracking-wider">Algorithm Selection</label>
-            <div class="grid grid-cols-2 gap-1 bg-slate-950 p-1 rounded-lg">
-                <button id="algAStar" class="py-1 text-[11px] font-bold rounded-md bg-indigo-600 text-white transition">
+            <div class="grid grid-cols-3 gap-1 bg-slate-950 p-1 rounded-lg">
+                <button id="algAStar" class="py-1 text-[10px] font-bold rounded-md bg-indigo-600 text-white transition">
                     A* (Original)
                 </button>
-                <button id="algMinimax" class="py-1 text-[11px] font-bold rounded-md text-slate-400 hover:text-white transition">
-                    Minimax (Custom)
+                <button id="algMinimax" class="py-1 text-[10px] font-bold rounded-md text-slate-400 hover:text-white transition">
+                    Minimax
+                </button>
+                <button id="algMinimaxV2" class="py-1 text-[10px] font-bold rounded-md text-slate-400 hover:text-white transition">
+                    Minimax v2
                 </button>
             </div>
         </div>
 
-        <!-- MINIMAX DEPTH SLIDER CONTROL (Shown when Minimax selected) -->
+        <!-- MINIMAX DEPTH SLIDER CONTROL (Shown when Minimax or Minimax v2 selected) -->
         <div id="minimaxDepthControl" class="hidden mb-3 bg-slate-900/60 p-2 rounded-xl border border-white/5">
             <div class="flex items-center justify-between mb-1">
                 <span class="text-[11px] text-slate-400 font-medium">Search Depth:</span>
@@ -362,7 +365,7 @@
             RIGHT: { dx: 1, dy: 0 }
         };
 
-        // Algorithm Selection ("astar" or "minimax")
+        // Algorithm Selection ("astar", "minimax", or "minimax_v2")
         let selectedAlgorithm = "astar";
         let minimaxMaxDepth = 35;
 
@@ -1110,7 +1113,9 @@
 
         // --- ALGORITHM DISPATCHER ---
         function runSelectedSolver() {
-            if (selectedAlgorithm === "minimax") {
+            if (selectedAlgorithm === "minimax_v2") {
+                solveLevelMinimaxV2();
+            } else if (selectedAlgorithm === "minimax") {
                 solveLevelMinimax();
             } else {
                 solveLevelAStar();
@@ -1468,6 +1473,209 @@
             }
         }
 
+        // --- AI SOLVER ALGORITHM 3: MINIMAX V2 (Heuristic Iterative Deepening) ---
+        function solveLevelMinimaxV2() {
+            const startTime = performance.now();
+            setAIStatus("Solving Minimax v2...", "bg-amber-500/20 text-amber-300 border-amber-500/30");
+
+            let targetHole = null;
+            for (let y = 0; y < currentLevel.grid.length; y++) {
+                for (let x = 0; x < currentLevel.grid[y].length; x++) {
+                    if (currentLevel.grid[y][x] === 'H') {
+                        targetHole = { x, y };
+                        break;
+                    }
+                }
+            }
+
+            if (!targetHole) return;
+
+            const WIN_SCORE = 1000;
+            const MAX_DEPTH = minimaxMaxDepth;
+            const directions = [
+                { dir: DIR.UP, label: 'UP' },
+                { dir: DIR.DOWN, label: 'DOWN' },
+                { dir: DIR.LEFT, label: 'LEFT' },
+                { dir: DIR.RIGHT, label: 'RIGHT' }
+            ];
+
+            // Heuristic evaluation matching minimax.ts: distance to goal + orientation penalty for non-vertical[cite: 7]
+            function evaluateState(state) {
+                const occupied = getOccupiedTiles(state);
+                const minDistance = Math.min(...occupied.map(c => Math.abs(c.x - targetHole.x) + Math.abs(c.y - targetHole.y)));
+                return -(minDistance + (state.orient === ORIENTATION.VERTICAL ? 0 : 1));
+            }
+
+            function isWinState(state) {
+                return state.orient === ORIENTATION.STANDING && state.x === targetHole.x && state.y === targetHole.y;
+            }
+
+            function getStateKey(s) {
+                const bridgeKey = s.bridges ? s.bridges.map(b => (b ? '1' : '0')).join('') : '';
+                return `${s.x},${s.y},${s.orient},${bridgeKey}`;
+            }
+
+            function getNextSimState(currState, dir) {
+                const nextPos = getNextState(currState, dir);
+                const occupied = getOccupiedTiles(nextPos);
+
+                let valid = true;
+                let nextBridges = [...currState.bridges];
+                let nextBroken = new Set(currState.broken);
+
+                for (let tile of occupied) {
+                    const char = getTileChar(tile.x, tile.y);
+                    if (char === ' ' || char === null) { valid = false; break; }
+                    
+                    if (char === 'B' && currentLevel.bridges) {
+                        const brIdx = currentLevel.bridges.findIndex(b => b.x === tile.x && b.y === tile.y);
+                        if (brIdx !== -1 && !nextBridges[brIdx]) { valid = false; break; }
+                    }
+
+                    if (nextBroken.has(`${tile.x},${tile.y}`)) { valid = false; break; }
+                }
+
+                if (!valid) return null;
+
+                if (nextPos.orient === ORIENTATION.STANDING) {
+                    const char = getTileChar(nextPos.x, nextPos.y);
+                    if (char === 'F') return null;
+                }
+
+                if (currentLevel.switches) {
+                    currentLevel.switches.forEach(sw => {
+                        const isTouching = occupied.some(t => t.x === sw.x && t.y === sw.y);
+                        if (isTouching) {
+                            if (sw.type === 'soft' || (sw.type === 'heavy' && nextPos.orient === ORIENTATION.STANDING)) {
+                                sw.targetBridges.forEach(bIdx => {
+                                    if (bIdx >= 0 && bIdx < nextBridges.length) {
+                                        nextBridges[bIdx] = !nextBridges[bIdx];
+                                    }
+                                });
+                            }
+                        }
+                    });
+                }
+
+                return {
+                    x: nextPos.x,
+                    y: nextPos.y,
+                    orient: nextPos.orient,
+                    bridges: nextBridges,
+                    broken: nextBroken
+                };
+            }
+
+            let totalNodes = 0;
+            let currentSimBlock = {
+                x: blockState.x,
+                y: blockState.y,
+                orient: blockState.orient,
+                bridges: [...activeBridges],
+                broken: new Set(orangeTilesBroken)
+            };
+            let solutionMoves = [];
+
+            for (let step = 0; step < 100; step++) {
+                if (isWinState(currentSimBlock)) break;
+
+                let bestMoveForStep = null;
+                let bestScoreForStep = -Infinity;
+                let stepNodes = 0;
+
+                for (let depth = 1; depth <= MAX_DEPTH; depth++) {
+                    const ctx = {
+                        alpha: -Infinity,
+                        shallowestPly: new Map([[getStateKey(currentSimBlock), 0]]),
+                        nodes: 1
+                    };
+
+                    let iterationBestMove = null;
+                    let iterationBestScore = -Infinity;
+
+                    for (let moveObj of directions) {
+                        const nextState = getNextSimState(currentSimBlock, moveObj.dir);
+                        if (!nextState) continue;
+
+                        const score = maximizeMinimaxV2(ctx, nextState, depth - 1, 1);
+                        if (score > iterationBestScore) {
+                            iterationBestScore = score;
+                            iterationBestMove = moveObj;
+                        }
+                    }
+
+                    stepNodes += ctx.nodes;
+                    if (iterationBestMove) {
+                        bestMoveForStep = iterationBestMove;
+                        bestScoreForStep = iterationBestScore;
+                    }
+
+                    if (iterationBestScore > WIN_SCORE / 2) break;
+                }
+
+                totalNodes += stepNodes;
+                if (!bestMoveForStep) break;
+
+                solutionMoves.push(bestMoveForStep);
+                currentSimBlock = getNextSimState(currentSimBlock, bestMoveForStep.dir);
+            }
+
+            function maximizeMinimaxV2(ctx, state, depthLeft, ply) {
+                if (ctx.alpha >= WIN_SCORE - ply) return -Infinity;
+
+                const key = getStateKey(state);
+                const seenAt = ctx.shallowestPly.get(key);
+                if (seenAt !== undefined && seenAt <= ply) return -Infinity;
+                ctx.shallowestPly.set(key, ply);
+                ctx.nodes++;
+
+                if (isWinState(state)) {
+                    const score = WIN_SCORE - ply;
+                    ctx.alpha = Math.max(ctx.alpha, score);
+                    return score;
+                }
+
+                if (depthLeft === 0) {
+                    const score = evaluateState(state);
+                    ctx.alpha = Math.max(ctx.alpha, score);
+                    return score;
+                }
+
+                let bestVal = -Infinity;
+                for (let moveObj of directions) {
+                    const nextState = getNextSimState(state, moveObj.dir);
+                    if (!nextState) continue;
+                    bestVal = Math.max(bestVal, maximizeMinimaxV2(ctx, nextState, depthLeft - 1, ply + 1));
+                }
+                return bestVal;
+            }
+
+            const endTime = performance.now();
+            const timeTaken = (endTime - startTime).toFixed(1);
+
+            if (solutionMoves.length > 0 && isWinState(currentSimBlock)) {
+                aiSolutionPath = solutionMoves;
+                aiCurrentStep = 0;
+
+                document.getElementById('statPathLength').innerText = aiSolutionPath.length;
+                document.getElementById('statNodesExplored').innerText = totalNodes;
+                document.getElementById('statSolveTime').innerText = `${timeTaken}ms`;
+
+                renderSolutionQueueUI();
+                setAIStatus("Solved (Minimax v2)", "bg-emerald-500/20 text-emerald-300 border-emerald-500/30");
+                
+                document.getElementById('btnPlay').disabled = false;
+                document.getElementById('btnStep').disabled = false;
+            } else {
+                setAIStatus("No Path Found", "bg-rose-500/20 text-rose-300 border-rose-500/30");
+                document.getElementById('solutionStepsContainer').innerHTML = `
+                    <div class="text-rose-400 text-center py-6 text-xs font-semibold">
+                        Minimax v2 could not locate a winning path for this map.
+                    </div>
+                `;
+            }
+        }
+
         function renderSolutionQueueUI() {
             const container = document.getElementById('solutionStepsContainer');
             container.innerHTML = '';
@@ -1569,21 +1777,37 @@
             // Algorithm Toggle Switch Buttons
             const algAStarBtn = document.getElementById('algAStar');
             const algMinimaxBtn = document.getElementById('algMinimax');
+            const algMinimaxV2Btn = document.getElementById('algMinimaxV2');
             const minimaxDepthControl = document.getElementById('minimaxDepthControl');
 
-            if (algAStarBtn && algMinimaxBtn) {
+            function setActiveAlgButton(activeBtn) {
+                [algAStarBtn, algMinimaxBtn, algMinimaxV2Btn].forEach(btn => {
+                    if (btn === activeBtn) {
+                        btn.className = "py-1 text-[10px] font-bold rounded-md bg-indigo-600 text-white transition";
+                    } else {
+                        btn.className = "py-1 text-[10px] font-bold rounded-md text-slate-400 hover:text-white transition";
+                    }
+                });
+            }
+
+            if (algAStarBtn && algMinimaxBtn && algMinimaxV2Btn) {
                 algAStarBtn.addEventListener('click', () => {
                     selectedAlgorithm = "astar";
-                    algAStarBtn.className = "py-1 text-[11px] font-bold rounded-md bg-indigo-600 text-white transition";
-                    algMinimaxBtn.className = "py-1 text-[11px] font-bold rounded-md text-slate-400 hover:text-white transition";
+                    setActiveAlgButton(algAStarBtn);
                     if (minimaxDepthControl) minimaxDepthControl.classList.add('hidden');
                     resetAISolverUI();
                 });
 
                 algMinimaxBtn.addEventListener('click', () => {
                     selectedAlgorithm = "minimax";
-                    algMinimaxBtn.className = "py-1 text-[11px] font-bold rounded-md bg-indigo-600 text-white transition";
-                    algAStarBtn.className = "py-1 text-[11px] font-bold rounded-md text-slate-400 hover:text-white transition";
+                    setActiveAlgButton(algMinimaxBtn);
+                    if (minimaxDepthControl) minimaxDepthControl.classList.remove('hidden');
+                    resetAISolverUI();
+                });
+
+                algMinimaxV2Btn.addEventListener('click', () => {
+                    selectedAlgorithm = "minimax_v2";
+                    setActiveAlgButton(algMinimaxV2Btn);
                     if (minimaxDepthControl) minimaxDepthControl.classList.remove('hidden');
                     resetAISolverUI();
                 });
