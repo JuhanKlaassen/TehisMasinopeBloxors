@@ -1271,7 +1271,7 @@
             if (!targetHole) return;
 
             const WIN_SCORE = 1000;
-            const MAX_DEPTH = 30;
+            const MAX_DEPTH = 35;
             const directions = [
                 { dir: DIR.UP, label: 'UP' },
                 { dir: DIR.DOWN, label: 'DOWN' },
@@ -1290,28 +1290,73 @@
                 return state.orient === ORIENTATION.STANDING && state.x === targetHole.x && state.y === targetHole.y;
             }
 
-            function isSimStateOnBoard(state) {
-                const tiles = getOccupiedTiles(state);
-                for (let tile of tiles) {
-                    const char = getTileChar(tile.x, tile.y);
-                    if (char === ' ' || char === null) return false;
-                }
-                if (state.orient === ORIENTATION.STANDING) {
-                    const char = getTileChar(state.x, state.y);
-                    if (char === 'F') return false;
-                }
-                return true;
+            function getStateKey(s) {
+                const bridgeKey = s.bridges ? s.bridges.map(b => (b ? '1' : '0')).join('') : '';
+                return `${s.x},${s.y},${s.orient},${bridgeKey}`;
             }
 
-            function getStateKey(s) {
-                return `${s.x},${s.y},${s.orient}`;
+            function getNextSimState(currState, dir) {
+                const nextPos = getNextState(currState, dir);
+                const occupied = getOccupiedTiles(nextPos);
+
+                let valid = true;
+                let nextBridges = [...currState.bridges];
+                let nextBroken = new Set(currState.broken);
+
+                for (let tile of occupied) {
+                    const char = getTileChar(tile.x, tile.y);
+                    if (char === ' ' || char === null) { valid = false; break; }
+                    
+                    if (char === 'B' && currentLevel.bridges) {
+                        const brIdx = currentLevel.bridges.findIndex(b => b.x === tile.x && b.y === tile.y);
+                        if (brIdx !== -1 && !nextBridges[brIdx]) { valid = false; break; }
+                    }
+
+                    if (nextBroken.has(`${tile.x},${tile.y}`)) { valid = false; break; }
+                }
+
+                if (!valid) return null;
+
+                if (nextPos.orient === ORIENTATION.STANDING) {
+                    const char = getTileChar(nextPos.x, nextPos.y);
+                    if (char === 'F') return null; // Fragile tile breaks under standing block
+                }
+
+                if (currentLevel.switches) {
+                    currentLevel.switches.forEach(sw => {
+                        const isTouching = occupied.some(t => t.x === sw.x && t.y === sw.y);
+                        if (isTouching) {
+                            if (sw.type === 'soft' || (sw.type === 'heavy' && nextPos.orient === ORIENTATION.STANDING)) {
+                                sw.targetBridges.forEach(bIdx => {
+                                    if (bIdx >= 0 && bIdx < nextBridges.length) {
+                                        nextBridges[bIdx] = !nextBridges[bIdx];
+                                    }
+                                });
+                            }
+                        }
+                    });
+                }
+
+                return {
+                    x: nextPos.x,
+                    y: nextPos.y,
+                    orient: nextPos.orient,
+                    bridges: nextBridges,
+                    broken: nextBroken
+                };
             }
 
             let totalNodes = 0;
-            let currentSimBlock = { ...blockState };
+            let currentSimBlock = {
+                x: blockState.x,
+                y: blockState.y,
+                orient: blockState.orient,
+                bridges: [...activeBridges],
+                broken: new Set(orangeTilesBroken)
+            };
             let solutionMoves = [];
 
-            // Perform step-by-step game loop simulation using iterative deepening minimax
+            // Execute iterative deepening search with switch/bridge simulation
             for (let step = 0; step < 100; step++) {
                 if (isWinState(currentSimBlock)) break;
 
@@ -1330,8 +1375,8 @@
                     let iterationBestScore = -Infinity;
 
                     for (let moveObj of directions) {
-                        const nextState = getNextState(currentSimBlock, moveObj.dir);
-                        if (!isSimStateOnBoard(nextState)) continue;
+                        const nextState = getNextSimState(currentSimBlock, moveObj.dir);
+                        if (!nextState) continue;
 
                         const score = maximizeMinimax(ctx, nextState, depth - 1, 1);
                         if (score > iterationBestScore) {
@@ -1346,15 +1391,15 @@
                         bestScoreForStep = iterationBestScore;
                     }
 
-                    if (iterationBestScore > WIN_SCORE / 2) break; // Early exit on win
+                    if (iterationBestScore > WIN_SCORE / 2) break; // Early exit on found goal path
                 }
 
                 totalNodes += stepNodes;
 
-                if (!bestMoveForStep) break; // Cannot make any legal moves
+                if (!bestMoveForStep) break; // No valid moves
 
                 solutionMoves.push(bestMoveForStep);
-                currentSimBlock = getNextState(currentSimBlock, bestMoveForStep.dir);
+                currentSimBlock = getNextSimState(currentSimBlock, bestMoveForStep.dir);
             }
 
             function maximizeMinimax(ctx, state, depthLeft, ply) {
@@ -1380,8 +1425,8 @@
 
                 let bestVal = -Infinity;
                 for (let moveObj of directions) {
-                    const nextState = getNextState(state, moveObj.dir);
-                    if (!isSimStateOnBoard(nextState)) continue;
+                    const nextState = getNextSimState(state, moveObj.dir);
+                    if (!nextState) continue;
                     bestVal = Math.max(bestVal, maximizeMinimax(ctx, nextState, depthLeft - 1, ply + 1));
                 }
                 return bestVal;
