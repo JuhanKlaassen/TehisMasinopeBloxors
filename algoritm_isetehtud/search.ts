@@ -1,7 +1,8 @@
 import { DIRECTIONS, isOnBoard, isWin, roll, stateKey } from "./game.ts"
 import type { Block, Direction, Level } from "./game.ts"
 
-// Single-player minimax: every level of the tree is a MAX level (there is no MIN player).
+// Minimax with only MAX levels (there is no MIN player), which reduces to a depth-first
+// shortest-path search (branch and bound): every route is explored, longer ones are cut off.
 // The search runs until every branch ends, so the only scores are a win (WIN_SCORE - moves)
 // or a dead end (-Infinity). No evaluation function is needed.
 export const WIN_SCORE = 1000

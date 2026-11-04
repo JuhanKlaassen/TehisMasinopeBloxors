@@ -1,6 +1,6 @@
 import { isWin, parseLevel, render, roll } from "./game.ts"
 import type { Move } from "./game.ts"
-import { bestMove } from "./minimax.ts"
+import { bestMove } from "./search.ts"
 
 // Bloxorz level 1
 const LEVEL_1 = `
