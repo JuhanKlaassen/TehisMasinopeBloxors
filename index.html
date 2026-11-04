@@ -161,9 +161,22 @@
         <div class="flex items-center justify-between pb-3 mb-3 border-b border-white/10">
             <div class="flex items-center gap-2">
                 <i class="fa-solid fa-brain text-indigo-400 text-lg"></i>
-                <h3 class="font-bold text-sm text-slate-100">A* Solver Engine</h3>
+                <h3 class="font-bold text-sm text-slate-100">Solver Engine</h3>
             </div>
             <span id="aiStatusTag" class="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">Idle</span>
+        </div>
+
+        <!-- ALGORITHM TOGGLE SWITCH -->
+        <div class="mb-3 bg-slate-900/90 p-1.5 rounded-xl border border-white/10">
+            <label class="block text-[10px] font-bold text-slate-400 mb-1 px-1 uppercase tracking-wider">Algorithm Selection</label>
+            <div class="grid grid-cols-2 gap-1 bg-slate-950 p-1 rounded-lg">
+                <button id="algAStar" class="py-1 text-[11px] font-bold rounded-md bg-indigo-600 text-white transition">
+                    A* (Original)
+                </button>
+                <button id="algMinimax" class="py-1 text-[11px] font-bold rounded-md text-slate-400 hover:text-white transition">
+                    Minimax (Custom)
+                </button>
+            </div>
         </div>
 
         <!-- AI Control Action Buttons -->
@@ -339,6 +352,9 @@
             LEFT: { dx: -1, dy: 0 },
             RIGHT: { dx: 1, dy: 0 }
         };
+
+        // Algorithm Selection ("astar" or "minimax")
+        let selectedAlgorithm = "astar";
 
         // Application Global State
         let currentLevelIdx = 0;
@@ -1082,10 +1098,19 @@
             }
         }
 
-        // --- AI SOLVER ALGORITHM (A*) ---
-        function solveLevelAI() {
+        // --- ALGORITHM DISPATCHER ---
+        function runSelectedSolver() {
+            if (selectedAlgorithm === "minimax") {
+                solveLevelMinimax();
+            } else {
+                solveLevelAStar();
+            }
+        }
+
+        // --- AI SOLVER ALGORITHM 1: ORIGINAL A* GRAPH SEARCH ---
+        function solveLevelAStar() {
             const startTime = performance.now();
-            setAIStatus("Solving...", "bg-amber-500/20 text-amber-300 border-amber-500/30");
+            setAIStatus("Solving A*...", "bg-amber-500/20 text-amber-300 border-amber-500/30");
 
             const startNode = {
                 x: currentLevel.start.x,
@@ -1214,7 +1239,7 @@
                 document.getElementById('statSolveTime').innerText = `${timeTaken}ms`;
 
                 renderSolutionQueueUI();
-                setAIStatus("Solved", "bg-emerald-500/20 text-emerald-300 border-emerald-500/30");
+                setAIStatus("Solved (A*)", "bg-emerald-500/20 text-emerald-300 border-emerald-500/30");
                 
                 document.getElementById('btnPlay').disabled = false;
                 document.getElementById('btnStep').disabled = false;
@@ -1223,6 +1248,166 @@
                 document.getElementById('solutionStepsContainer').innerHTML = `
                     <div class="text-rose-400 text-center py-6 text-xs font-semibold">
                         No valid solution path exists for this map layout.
+                    </div>
+                `;
+            }
+        }
+
+        // --- AI SOLVER ALGORITHM 2: CUSTOM MINIMAX ENGINE ---
+        function solveLevelMinimax() {
+            const startTime = performance.now();
+            setAIStatus("Solving Minimax...", "bg-amber-500/20 text-amber-300 border-amber-500/30");
+
+            let targetHole = null;
+            for (let y = 0; y < currentLevel.grid.length; y++) {
+                for (let x = 0; x < currentLevel.grid[y].length; x++) {
+                    if (currentLevel.grid[y][x] === 'H') {
+                        targetHole = { x, y };
+                        break;
+                    }
+                }
+            }
+
+            if (!targetHole) return;
+
+            const WIN_SCORE = 1000;
+            const MAX_DEPTH = 30;
+            const directions = [
+                { dir: DIR.UP, label: 'UP' },
+                { dir: DIR.DOWN, label: 'DOWN' },
+                { dir: DIR.LEFT, label: 'LEFT' },
+                { dir: DIR.RIGHT, label: 'RIGHT' }
+            ];
+
+            function evaluateState(state) {
+                const occupied = getOccupiedTiles(state);
+                const distances = occupied.map(c => Math.abs(c.x - targetHole.x) + Math.abs(c.y - targetHole.y));
+                const minDistance = Math.min(...distances);
+                return -(minDistance + (state.orient === ORIENTATION.STANDING ? 0 : 1));
+            }
+
+            function isWinState(state) {
+                return state.orient === ORIENTATION.STANDING && state.x === targetHole.x && state.y === targetHole.y;
+            }
+
+            function isSimStateOnBoard(state) {
+                const tiles = getOccupiedTiles(state);
+                for (let tile of tiles) {
+                    const char = getTileChar(tile.x, tile.y);
+                    if (char === ' ' || char === null) return false;
+                }
+                if (state.orient === ORIENTATION.STANDING) {
+                    const char = getTileChar(state.x, state.y);
+                    if (char === 'F') return false;
+                }
+                return true;
+            }
+
+            function getStateKey(s) {
+                return `${s.x},${s.y},${s.orient}`;
+            }
+
+            let totalNodes = 0;
+            let currentSimBlock = { ...blockState };
+            let solutionMoves = [];
+
+            // Perform step-by-step game loop simulation using iterative deepening minimax
+            for (let step = 0; step < 100; step++) {
+                if (isWinState(currentSimBlock)) break;
+
+                let bestMoveForStep = null;
+                let bestScoreForStep = -Infinity;
+                let stepNodes = 0;
+
+                for (let depth = 1; depth <= MAX_DEPTH; depth++) {
+                    const ctx = {
+                        alpha: -Infinity,
+                        shallowestPly: new Map([[getStateKey(currentSimBlock), 0]]),
+                        nodes: 1
+                    };
+
+                    let iterationBestMove = null;
+                    let iterationBestScore = -Infinity;
+
+                    for (let moveObj of directions) {
+                        const nextState = getNextState(currentSimBlock, moveObj.dir);
+                        if (!isSimStateOnBoard(nextState)) continue;
+
+                        const score = maximizeMinimax(ctx, nextState, depth - 1, 1);
+                        if (score > iterationBestScore) {
+                            iterationBestScore = score;
+                            iterationBestMove = moveObj;
+                        }
+                    }
+
+                    stepNodes += ctx.nodes;
+                    if (iterationBestMove) {
+                        bestMoveForStep = iterationBestMove;
+                        bestScoreForStep = iterationBestScore;
+                    }
+
+                    if (iterationBestScore > WIN_SCORE / 2) break; // Early exit on win
+                }
+
+                totalNodes += stepNodes;
+
+                if (!bestMoveForStep) break; // Cannot make any legal moves
+
+                solutionMoves.push(bestMoveForStep);
+                currentSimBlock = getNextState(currentSimBlock, bestMoveForStep.dir);
+            }
+
+            function maximizeMinimax(ctx, state, depthLeft, ply) {
+                if (ctx.alpha >= WIN_SCORE - ply) return -Infinity;
+
+                const key = getStateKey(state);
+                const seenAt = ctx.shallowestPly.get(key);
+                if (seenAt !== undefined && seenAt <= ply) return -Infinity;
+                ctx.shallowestPly.set(key, ply);
+                ctx.nodes++;
+
+                if (isWinState(state)) {
+                    const winScore = WIN_SCORE - ply;
+                    ctx.alpha = Math.max(ctx.alpha, winScore);
+                    return winScore;
+                }
+
+                if (depthLeft === 0) {
+                    const evalScore = evaluateState(state);
+                    ctx.alpha = Math.max(ctx.alpha, evalScore);
+                    return evalScore;
+                }
+
+                let bestVal = -Infinity;
+                for (let moveObj of directions) {
+                    const nextState = getNextState(state, moveObj.dir);
+                    if (!isSimStateOnBoard(nextState)) continue;
+                    bestVal = Math.max(bestVal, maximizeMinimax(ctx, nextState, depthLeft - 1, ply + 1));
+                }
+                return bestVal;
+            }
+
+            const endTime = performance.now();
+            const timeTaken = (endTime - startTime).toFixed(1);
+
+            if (solutionMoves.length > 0 && isWinState(currentSimBlock)) {
+                aiSolutionPath = solutionMoves;
+                aiCurrentStep = 0;
+
+                document.getElementById('statPathLength').innerText = aiSolutionPath.length;
+                document.getElementById('statNodesExplored').innerText = totalNodes;
+                document.getElementById('statSolveTime').innerText = `${timeTaken}ms`;
+
+                renderSolutionQueueUI();
+                setAIStatus("Solved (Minimax)", "bg-emerald-500/20 text-emerald-300 border-emerald-500/30");
+                
+                document.getElementById('btnPlay').disabled = false;
+                document.getElementById('btnStep').disabled = false;
+            } else {
+                setAIStatus("No Path Found", "bg-rose-500/20 text-rose-300 border-rose-500/30");
+                document.getElementById('solutionStepsContainer').innerHTML = `
+                    <div class="text-rose-400 text-center py-6 text-xs font-semibold">
+                        Minimax could not locate a winning path for this map within max depth.
                     </div>
                 `;
             }
@@ -1321,11 +1506,30 @@
 
         // --- UI CONTROLS & EVENT LISTENERS ---
         function setupUIEventListeners() {
-            // Helper for safe event listener binding
             const addListener = (id, event, fn) => {
                 const el = document.getElementById(id);
                 if (el) el.addEventListener(event, fn);
             };
+
+            // Algorithm Toggle Switch Buttons
+            const algAStarBtn = document.getElementById('algAStar');
+            const algMinimaxBtn = document.getElementById('algMinimax');
+
+            if (algAStarBtn && algMinimaxBtn) {
+                algAStarBtn.addEventListener('click', () => {
+                    selectedAlgorithm = "astar";
+                    algAStarBtn.className = "py-1 text-[11px] font-bold rounded-md bg-indigo-600 text-white transition";
+                    algMinimaxBtn.className = "py-1 text-[11px] font-bold rounded-md text-slate-400 hover:text-white transition";
+                    resetAISolverUI();
+                });
+
+                algMinimaxBtn.addEventListener('click', () => {
+                    selectedAlgorithm = "minimax";
+                    algMinimaxBtn.className = "py-1 text-[11px] font-bold rounded-md bg-indigo-600 text-white transition";
+                    algAStarBtn.className = "py-1 text-[11px] font-bold rounded-md text-slate-400 hover:text-white transition";
+                    resetAISolverUI();
+                });
+            }
 
             // Level Selector Dropdown
             const select = document.getElementById('levelSelect');
@@ -1432,7 +1636,7 @@
 
             // Controls & Reset
             addListener('btnReset', 'click', () => loadLevel(currentLevelIdx));
-            addListener('btnSolve', 'click', solveLevelAI);
+            addListener('btnSolve', 'click', runSelectedSolver);
             addListener('btnPlay', 'click', startAutoPlay);
             addListener('btnPause', 'click', stopAutoPlay);
             addListener('btnStep', 'click', () => { stopAutoPlay(); executeAIStep(); });
@@ -1486,7 +1690,6 @@
 
             const jsonStr = JSON.stringify(compiled, null, 2);
             
-            // execCommand copy fallback for iframe compatibility
             const tempArea = document.createElement('textarea');
             tempArea.value = jsonStr;
             document.body.appendChild(tempArea);
