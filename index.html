@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Bloxorz 3D & AI Solver Visualizer</title>
+    <title>Bloxorz 3D & Custom Level Builder</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Google Fonts -->
@@ -30,7 +30,7 @@
 
         /* Glassmorphism Styling */
         .glass-panel {
-            background: rgba(17, 24, 39, 0.75);
+            background: rgba(17, 24, 39, 0.85);
             backdrop-filter: blur(12px);
             -webkit-backdrop-filter: blur(12px);
             border: 1px solid rgba(255, 255, 255, 0.1);
@@ -50,28 +50,44 @@
             box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
         }
 
-        .glass-btn:active:not(:disabled) {
-            transform: translateY(1px);
+        .glass-btn.active-tool {
+            background: rgba(79, 70, 229, 0.4) !important;
+            border-color: #818cf8 !important;
+            box-shadow: 0 0 12px rgba(99, 102, 241, 0.5);
         }
 
-        .glass-btn:disabled {
-            opacity: 0.4;
-            cursor: not-allowed;
+        /* Blueprint Canvas Grid Cells */
+        .blueprint-cell {
+            width: 56px;
+            height: 56px;
+            min-width: 56px;
+            min-height: 56px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background 0.15s ease, border-color 0.15s ease;
+        }
+
+        .blueprint-cell:hover {
+            border-color: rgba(129, 140, 248, 0.6);
+            background-color: rgba(99, 102, 241, 0.15);
         }
 
         /* Custom Scrollbar for side panel */
         ::-webkit-scrollbar {
-            width: 6px;
+            width: 8px;
+            height: 8px;
         }
         ::-webkit-scrollbar-track {
             background: rgba(15, 23, 42, 0.6);
         }
         ::-webkit-scrollbar-thumb {
             background: rgba(99, 102, 241, 0.5);
-            border-radius: 3px;
+            border-radius: 4px;
         }
 
-        /* Canvas overlay canvas styling */
         #webgl-container {
             width: 100vw;
             height: 100vh;
@@ -81,48 +97,57 @@
             z-index: 1;
         }
 
-        /* D-Pad Buttons for Touch Mobile */
         .dpad-btn {
             touch-action: manipulation;
         }
     </style>
 </head>
-<body class="w-full h-full relative">
+<body class="w-full h-full relative overflow-hidden">
 
-    <!-- WebGL Canvas Container -->
+    <!-- WebGL Canvas Container (3D Mode) -->
     <div id="webgl-container"></div>
 
-    <!-- UI Overlay Header / Info Bar -->
-    <div class="absolute top-4 left-4 right-4 z-10 flex flex-col sm:flex-row justify-between items-center gap-4 pointer-events-none">
-        <!-- Title & Level Selector -->
-        <div class="glass-panel rounded-2xl px-5 py-3 flex items-center gap-4 pointer-events-auto shadow-2xl">
+    <!-- UI Header Bar & Mode Tabs -->
+    <div class="absolute top-4 left-4 right-4 z-20 flex flex-col sm:flex-row justify-between items-center gap-4 pointer-events-none">
+        <!-- Title & Mode Switcher -->
+        <div class="glass-panel rounded-2xl px-5 py-2.5 flex items-center gap-4 pointer-events-auto shadow-2xl">
             <div class="flex items-center gap-3">
                 <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-500 flex items-center justify-center text-white shadow-lg shadow-indigo-500/30">
                     <i class="fa-solid font-bold fa-cube text-xl"></i>
                 </div>
                 <div>
-                    <h1 class="text-xl font-bold tracking-wide bg-gradient-to-r from-white via-indigo-100 to-indigo-300 bg-clip-text text-transparent">BLOXORZ 3D</h1>
-                    <p class="text-xs text-indigo-300/70 font-medium">AI Solver Visualizer</p>
+                    <h1 class="text-lg font-bold tracking-wide bg-gradient-to-r from-white via-indigo-100 to-indigo-300 bg-clip-text text-transparent">BLOXORZ 3D</h1>
+                    <p class="text-[10px] text-indigo-300/70 font-medium">AI Solver & Blueprint Architect</p>
                 </div>
             </div>
             
             <div class="h-8 w-[1px] bg-white/10 mx-1"></div>
 
-            <select id="levelSelect" class="bg-slate-900/90 text-indigo-200 border border-indigo-500/30 rounded-xl px-3 py-1.5 text-sm font-semibold focus:outline-none focus:border-indigo-500 cursor-pointer transition">
-                <!-- Levels populated dynamically -->
-            </select>
+            <!-- View Mode Tabs -->
+            <div class="flex bg-slate-900/80 p-1 rounded-xl border border-white/10">
+                <button id="tab3D" class="px-4 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 text-white shadow-md transition flex items-center gap-2">
+                    <i class="fa-solid fa-cube"></i> 3D Play & AI
+                </button>
+                <button id="tabEditor" class="px-4 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition flex items-center gap-2">
+                    <i class="fa-solid fa-drafting-compass"></i> Map Builder
+                </button>
+            </div>
         </div>
 
-        <!-- Gameplay Stats Bar -->
-        <div class="glass-panel rounded-2xl px-6 py-3 flex items-center gap-6 pointer-events-auto shadow-2xl">
+        <!-- Gameplay & Level Controls (3D Mode) -->
+        <div id="gameControlsBar" class="glass-panel rounded-2xl px-6 py-2.5 flex items-center gap-6 pointer-events-auto shadow-2xl">
+            <select id="levelSelect" class="bg-slate-900/90 text-indigo-200 border border-indigo-500/30 rounded-xl px-3 py-1.5 text-xs font-semibold focus:outline-none focus:border-indigo-500 cursor-pointer transition">
+                <!-- Populated dynamically -->
+            </select>
+            <div class="h-8 w-[1px] bg-white/10"></div>
             <div class="text-center">
-                <span class="block text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Moves</span>
-                <span id="moveCounter" class="text-xl font-bold font-mono text-indigo-400">0</span>
+                <span class="block text-[9px] uppercase tracking-wider text-slate-400 font-semibold">Moves</span>
+                <span id="moveCounter" class="text-lg font-bold font-mono text-indigo-400">0</span>
             </div>
             <div class="h-8 w-[1px] bg-white/10"></div>
             <div class="text-center">
-                <span class="block text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Orientation</span>
-                <span id="orientationBadge" class="text-xs font-semibold px-2.5 py-1 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 inline-block mt-0.5">
+                <span class="block text-[9px] uppercase tracking-wider text-slate-400 font-semibold">Orientation</span>
+                <span id="orientationBadge" class="text-xs font-semibold px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 inline-block">
                     Standing
                 </span>
             </div>
@@ -133,9 +158,8 @@
         </div>
     </div>
 
-    <!-- AI Control & Analytics Panel (Right Side Desktop / Bottom Mobile) -->
-    <div class="absolute right-4 top-24 bottom-6 w-80 max-w-[calc(100vw-2rem)] z-10 flex flex-col gap-4 pointer-events-none">
-        
+    <!-- AI Control & Analytics Side Panel (3D Mode) -->
+    <div id="aiSidePanel" class="absolute right-4 top-24 bottom-6 w-80 max-w-[calc(100vw-2rem)] z-20 flex flex-col gap-4 pointer-events-none">
         <!-- AI Controls Glass Box -->
         <div class="glass-panel rounded-2xl p-4 pointer-events-auto flex flex-col gap-3 shadow-2xl">
             <div class="flex items-center justify-between">
@@ -145,13 +169,11 @@
                 <span id="aiStatusTag" class="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">Idle</span>
             </div>
 
-            <!-- Primary Action Button -->
             <button id="btnSolve" class="w-full py-2.5 px-4 rounded-xl font-semibold bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white shadow-lg shadow-indigo-600/30 transition flex items-center justify-center gap-2 text-sm">
                 <i class="fa-solid fa-wand-magic-sparkles"></i>
                 <span>Find Shortest Path</span>
             </button>
 
-            <!-- Auto-Play Controls -->
             <div class="grid grid-cols-3 gap-2">
                 <button id="btnPlay" disabled class="glass-btn py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5">
                     <i class="fa-solid fa-play text-emerald-400"></i> Play
@@ -164,7 +186,6 @@
                 </button>
             </div>
 
-            <!-- Playback Speed Slider -->
             <div class="mt-1">
                 <div class="flex justify-between text-[11px] text-slate-400 mb-1">
                     <span>Speed</span>
@@ -174,7 +195,7 @@
             </div>
         </div>
 
-        <!-- Solver Analytics / Path Tree Box -->
+        <!-- Solver Analytics Box -->
         <div class="glass-panel rounded-2xl p-4 pointer-events-auto flex-1 flex flex-col min-h-0 shadow-2xl">
             <h3 class="text-xs font-bold tracking-wider text-slate-400 uppercase mb-3 flex items-center justify-between">
                 <span>Solver Analytics</span>
@@ -187,7 +208,7 @@
                     <span id="statPathLength" class="text-sm font-bold font-mono text-indigo-300">--</span>
                 </div>
                 <div class="bg-slate-900/60 p-2 rounded-xl border border-white/5 text-center">
-                    <span class="block text-[9px] uppercase text-slate-400 font-semibold">Explored</span>
+                    <span class="block text-[9px] uppercase text-slate-400 font-semibold">Nodes</span>
                     <span id="statNodesExplored" class="text-sm font-bold font-mono text-purple-300">--</span>
                 </div>
                 <div class="bg-slate-900/60 p-2 rounded-xl border border-white/5 text-center">
@@ -196,7 +217,6 @@
                 </div>
             </div>
 
-            <!-- Steps Explorer Queue -->
             <span class="text-[10px] uppercase tracking-wider text-slate-400 font-semibold mb-1.5 block">Move Solution Queue</span>
             <div id="solutionStepsContainer" class="flex-1 overflow-y-auto rounded-xl bg-slate-950/50 p-2 border border-white/5 font-mono text-xs space-y-1">
                 <div class="text-slate-500 text-center py-6 text-xs italic">
@@ -206,8 +226,69 @@
         </div>
     </div>
 
+    <!-- FULLSCREEN 2D MAP BLUEPRINT BUILDER MODE OVERLAY -->
+    <div id="editorOverlay" class="fixed inset-0 z-30 bg-slate-950/95 flex flex-col hidden pt-20 pb-4 px-4">
+        
+        <!-- Blueprint Top Toolbar -->
+        <div class="glass-panel rounded-2xl p-3 mb-3 flex flex-wrap items-center justify-between gap-4 shadow-2xl">
+            <!-- Grid Dimensions -->
+            <div class="flex items-center gap-3">
+                <span class="text-xs font-bold text-slate-300 uppercase tracking-wider"><i class="fa-solid fa-ruler-combined text-indigo-400 mr-1"></i> Grid Size:</span>
+                <div class="flex items-center gap-1.5">
+                    <input id="editRows" type="number" min="5" max="20" value="8" class="w-14 bg-slate-900 text-center border border-slate-700 rounded-lg py-1 text-xs font-mono font-bold text-indigo-200">
+                    <span class="text-slate-500 text-xs">x</span>
+                    <input id="editCols" type="number" min="5" max="20" value="10" class="w-14 bg-slate-900 text-center border border-slate-700 rounded-lg py-1 text-xs font-mono font-bold text-indigo-200">
+                    <button id="btnResizeGrid" class="glass-btn px-3 py-1 rounded-lg text-xs font-semibold text-slate-300 hover:text-white">Apply</button>
+                </div>
+            </div>
+
+            <!-- Tile Painting Palette (Keys 1-8) -->
+            <div class="flex items-center gap-1.5 overflow-x-auto py-1">
+                <button data-tool=" " class="palette-btn glass-btn active-tool px-2.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 text-slate-400" title="Shortcut: 1">
+                    <span class="font-mono text-[10px] px-1 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">1</span> Void
+                </button>
+                <button data-tool="." class="palette-btn glass-btn px-2.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 text-slate-200" title="Shortcut: 2">
+                    <span class="font-mono text-[10px] px-1 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">2</span> Solid Tile
+                </button>
+                <button data-tool="F" class="palette-btn glass-btn px-2.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 text-orange-400" title="Shortcut: 3">
+                    <span class="font-mono text-[10px] px-1 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">3</span> Fragile
+                </button>
+                <button data-tool="O" class="palette-btn glass-btn px-2.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 text-cyan-400" title="Shortcut: 4">
+                    <span class="font-mono text-[10px] px-1 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">4</span> Soft Switch
+                </button>
+                <button data-tool="X" class="palette-btn glass-btn px-2.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 text-pink-400" title="Shortcut: 5">
+                    <span class="font-mono text-[10px] px-1 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">5</span> Heavy Switch
+                </button>
+                <button data-tool="B" class="palette-btn glass-btn px-2.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 text-slate-400" title="Shortcut: 6">
+                    <span class="font-mono text-[10px] px-1 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">6</span> Bridge
+                </button>
+                <button data-tool="S" class="palette-btn glass-btn px-2.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 text-indigo-400" title="Shortcut: 7">
+                    <span class="font-mono text-[10px] px-1 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">7</span> Start
+                </button>
+                <button data-tool="H" class="palette-btn glass-btn px-2.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 text-emerald-400" title="Shortcut: 8">
+                    <span class="font-mono text-[10px] px-1 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">8</span> Goal
+                </button>
+            </div>
+
+            <!-- Blueprint Actions -->
+            <div class="flex items-center gap-2">
+                <button id="btnClearGrid" class="glass-btn px-3 py-1.5 rounded-xl text-xs font-semibold text-rose-400 hover:text-rose-300">Clear</button>
+                <button id="btnTestLevel" class="py-1.5 px-4 rounded-xl text-xs font-bold bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-lg shadow-emerald-600/30 flex items-center gap-1.5">
+                    <i class="fa-solid fa-play"></i> Test & Play 3D
+                </button>
+            </div>
+        </div>
+
+        <!-- Huge Blueprint Canvas Viewport -->
+        <div id="blueprintViewport" class="flex-1 relative bg-slate-950 rounded-2xl border border-indigo-500/20 overflow-auto flex items-center justify-center p-8 shadow-inner">
+            <div id="blueprintGridContainer" class="relative bg-slate-900/90 rounded-xl p-4 border border-indigo-500/30 shadow-2xl transition-transform duration-100 origin-center">
+                <!-- Large 2D Interactive Matrix Grid Generated Dynamically -->
+            </div>
+        </div>
+    </div>
+
     <!-- On-Screen Touch D-Pad Controls for Mobile/Tablet -->
-    <div class="absolute left-6 bottom-6 z-10 pointer-events-auto md:hidden flex flex-col items-center">
+    <div id="touchDPad" class="absolute left-6 bottom-6 z-10 pointer-events-auto md:hidden flex flex-col items-center">
         <button id="btnUp" class="dpad-btn glass-btn w-12 h-12 rounded-2xl mb-1 flex items-center justify-center text-lg active:bg-indigo-600">
             <i class="fa-solid fa-chevron-up"></i>
         </button>
@@ -224,7 +305,7 @@
         </div>
     </div>
 
-    <!-- Level Complete / Game Over Modal Box -->
+    <!-- Modal Box -->
     <div id="modalOverlay" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-filter backdrop-blur-md hidden flex items-center justify-center p-4">
         <div class="glass-panel max-w-sm w-full rounded-3xl p-6 text-center shadow-2xl border border-indigo-500/30 transform transition-all scale-95 opacity-0" id="modalCard">
             <div id="modalIconContainer" class="w-16 h-16 rounded-2xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 mx-auto flex items-center justify-center text-3xl mb-4 shadow-lg shadow-emerald-500/20">
@@ -242,21 +323,35 @@
 
     <!-- MAIN JAVASCRIPT GAME ENGINE -->
     <script>
-        /**
-         * BLOXORZ ENGINE & AI SOLVER CORE ARCHITECTURE
-         */
+        // Orientations
+        const ORIENTATION = { STANDING: 0, HORIZONTAL: 1, VERTICAL: 2 };
 
-        // Level Definitions
-        // Legend:
-        // '.' = Normal tile (0)
-        // ' ' = Void / Hole
-        // 'H' = Level Goal Target Hole
-        // 'O' = Soft Switch (triggers when block touches lying or standing)
-        // 'X' = Heavy Switch (triggers ONLY when block stands on it)
-        // 'F' = Fragile Orange Tile (breaks if block stands upright)
-        // 'B' = Toggle Bridge Tile (starts hidden/active based on config)
+        // Direction Rules
+        const DIR = {
+            UP: { dx: 0, dy: -1 },
+            DOWN: { dx: 0, dy: 1 },
+            LEFT: { dx: -1, dy: 0 },
+            RIGHT: { dx: 1, dy: 0 }
+        };
 
-        const LEVELS = [
+        // Application Global State
+        let currentLevelIdx = 0;
+        let currentLevel = null;
+        let blockState = { x: 0, y: 0, orient: ORIENTATION.STANDING };
+        let moveCount = 0;
+        let isAnimating = false;
+        let activeBridges = [];
+        let orangeTilesBroken = new Set();
+
+        // Level Editor Data Matrix
+        let editorRows = 8;
+        let editorCols = 10;
+        let editorGrid = [];
+        let activeTool = '.';
+        let isMouseDownPainting = false;
+        let customLevelCounter = 1;
+
+        const PRESET_LEVELS = [
             {
                 id: 1,
                 name: "Stage 1: Genesis",
@@ -283,12 +378,8 @@
                     "   .....",
                     "   ..H.."
                 ],
-                switches: [
-                    { x: 3, y: 1, type: 'soft', targetBridges: [0], action: 'toggle' }
-                ],
-                bridges: [
-                    { x: 3, y: 3, active: false }
-                ]
+                switches: [{ x: 3, y: 1, type: 'soft', targetBridges: [0] }],
+                bridges: [{ x: 3, y: 3, active: false }]
             },
             {
                 id: 3,
@@ -314,12 +405,8 @@
                     "   .....",
                     "   ..H.."
                 ],
-                switches: [
-                    { x: 2, y: 1, type: 'heavy', targetBridges: [0], action: 'toggle' }
-                ],
-                bridges: [
-                    { x: 3, y: 3, active: false }
-                ]
+                switches: [{ x: 2, y: 1, type: 'heavy', targetBridges: [0] }],
+                bridges: [{ x: 3, y: 3, active: false }]
             },
             {
                 id: 5,
@@ -331,59 +418,30 @@
                     "...F..H.",
                     "......  "
                 ],
-                switches: [
-                    { x: 1, y: 1, type: 'soft', targetBridges: [0], action: 'toggle' }
-                ],
-                bridges: [
-                    { x: 4, y: 1, active: false }
-                ]
+                switches: [{ x: 1, y: 1, type: 'soft', targetBridges: [0] }],
+                bridges: [{ x: 4, y: 1, active: false }]
             }
         ];
 
-        // Orientations
-        const ORIENTATION = {
-            STANDING: 0,   // Occupies (x, y) with height 2 along Z
-            HORIZONTAL: 1, // Occupies (x, y) and (x+1, y) along X-axis
-            VERTICAL: 2    // Occupies (x, y) and (x, y+1) along Y-axis
-        };
-
-        // Direction Definitions
-        const DIR = {
-            UP: { dx: 0, dy: -1 },
-            DOWN: { dx: 0, dy: 1 },
-            LEFT: { dx: -1, dy: 0 },
-            RIGHT: { dx: 1, dy: 0 }
-        };
-
-        // Global State & Visualizer Variables
-        let currentLevelIdx = 0;
-        let currentLevel = null;
-        let blockState = { x: 0, y: 0, orient: ORIENTATION.STANDING };
-        let moveCount = 0;
-        let isAnimating = false;
-        let activeBridges = []; // Array of boolean states for current level bridges
-        let orangeTilesBroken = new Set(); // Track broken fragile tile coordinates
-
-        // AI Solution State
+        // AI Path Solution State
         let aiSolutionPath = [];
         let aiCurrentStep = 0;
         let aiAutoPlayTimer = null;
         let aiPlaySpeed = 1.0;
 
-        // THREE.JS Renderer & Scene Graphics
+        // Three.js Scene Variables
         let scene, camera, renderer, controls;
         let blockMesh, gridGroup, bridgeMeshes = [], fragileMeshes = {};
-        let shadowMesh;
 
-        // --- GAME INITIALIZATION ---
+        // INITIALIZATION
         window.addEventListener('DOMContentLoaded', () => {
             initThreeJS();
+            initEditorGrid(editorRows, editorCols);
             setupUIEventListeners();
             loadLevel(0);
             animateLoop();
         });
 
-        // Setup 3D Scene
         function initThreeJS() {
             const container = document.getElementById('webgl-container');
             
@@ -403,46 +461,34 @@
             controls = new THREE.OrbitControls(camera, renderer.domElement);
             controls.enableDamping = true;
             controls.dampingFactor = 0.05;
-            controls.maxPolarAngle = Math.PI / 2 - 0.05; // Don't go below ground
+            controls.maxPolarAngle = Math.PI / 2 - 0.05;
             controls.minDistance = 8;
-            controls.maxDistance = 40;
+            controls.maxDistance = 45;
 
             // Lights
             const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
             scene.add(ambientLight);
 
             const dirLight = new THREE.DirectionalLight(0xffffff, 0.9);
-            dirLight.position.set(12, 20, 15);
+            dirLight.position.set(12, 22, 15);
             dirLight.castShadow = true;
             dirLight.shadow.mapSize.width = 2048;
             dirLight.shadow.mapSize.height = 2048;
-            dirLight.shadow.camera.near = 0.5;
-            dirLight.shadow.camera.far = 50;
-            dirLight.shadow.camera.left = -15;
-            dirLight.shadow.camera.right = 15;
-            dirLight.shadow.camera.top = 15;
-            dirLight.shadow.camera.bottom = -15;
             dirLight.shadow.bias = -0.0005;
             scene.add(dirLight);
 
-            const pointLight = new THREE.PointLight(0x6366f1, 1.5, 25);
-            pointLight.position.set(0, 5, 0);
-            scene.add(pointLight);
-
-            // Create Block Mesh
+            // Block Cuboid (1x2x1)
             const blockGeo = new THREE.BoxGeometry(0.96, 1.96, 0.96);
             const blockMat = new THREE.MeshStandardMaterial({
                 color: 0x6366f1,
                 roughness: 0.2,
-                metalness: 0.5,
-                wireframe: false
+                metalness: 0.5
             });
             blockMesh = new THREE.Mesh(blockGeo, blockMat);
             blockMesh.castShadow = true;
             blockMesh.receiveShadow = true;
             scene.add(blockMesh);
 
-            // Group for tiles
             gridGroup = new THREE.Group();
             scene.add(gridGroup);
 
@@ -455,10 +501,10 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
         }
 
-        // --- LEVEL LOADING & GRAPHICS GENERATION ---
+        // --- LEVEL LOADING & GRAPHICS ---
         function loadLevel(index) {
             currentLevelIdx = index;
-            currentLevel = LEVELS[index];
+            currentLevel = PRESET_LEVELS[index];
             moveCount = 0;
             orangeTilesBroken.clear();
             stopAutoPlay();
@@ -470,14 +516,13 @@
                 orient: ORIENTATION.STANDING
             };
 
-            // Setup active bridges
-            activeBridges = currentLevel.bridges.map(b => b.active);
+            activeBridges = currentLevel.bridges ? currentLevel.bridges.map(b => b.active) : [];
 
-            buildLevelGraphics();
+            build3DLevelGraphics();
             updateBlockMeshPosition(false);
             updateUIStats();
 
-            // Set camera position according to grid size
+            // Center Camera target
             const rows = currentLevel.grid.length;
             const cols = Math.max(...currentLevel.grid.map(r => r.length));
             controls.target.set(cols / 2, 0, rows / 2);
@@ -485,8 +530,7 @@
             controls.update();
         }
 
-        function buildLevelGraphics() {
-            // Clear existing tiles
+        function build3DLevelGraphics() {
             while (gridGroup.children.length > 0) {
                 const child = gridGroup.children[0];
                 gridGroup.remove(child);
@@ -496,8 +540,6 @@
             fragileMeshes = {};
 
             const tileGeo = new THREE.BoxGeometry(0.96, 0.4, 0.96);
-            
-            // Materials
             const normalMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.4, metalness: 0.1 });
             const fragileMat = new THREE.MeshStandardMaterial({ color: 0xf97316, roughness: 0.6, metalness: 0.1 });
             const switchSoftMat = new THREE.MeshStandardMaterial({ color: 0x06b6d4, roughness: 0.3, metalness: 0.6 });
@@ -510,16 +552,11 @@
                     const char = row[x];
                     if (char === ' ') continue; // Void
 
-                    const tileX = x;
-                    const tileZ = y;
-
-                    // Hole handling
                     if (char === 'H') {
-                        // Destination Hole Frame Rim
-                        const holeBorderGeo = new THREE.BoxGeometry(1.0, 0.4, 1.0);
-                        const holeBorderMat = new THREE.MeshStandardMaterial({ color: 0x10b981, roughness: 0.2, wireframe: true });
-                        const holeMesh = new THREE.Mesh(holeBorderGeo, holeBorderMat);
-                        holeMesh.position.set(tileX, -0.2, tileZ);
+                        const holeGeo = new THREE.BoxGeometry(1.0, 0.4, 1.0);
+                        const holeMat = new THREE.MeshStandardMaterial({ color: 0x10b981, roughness: 0.2, wireframe: true });
+                        const holeMesh = new THREE.Mesh(holeGeo, holeMat);
+                        holeMesh.position.set(x, -0.2, y);
                         gridGroup.add(holeMesh);
                         continue;
                     }
@@ -527,23 +564,19 @@
                     let mat = normalMat;
                     if (char === 'F') mat = fragileMat;
 
-                    // Check for custom switches on this tile
                     const switchInfo = currentLevel.switches.find(s => s.x === x && s.y === y);
                     if (switchInfo) {
                         mat = switchInfo.type === 'soft' ? switchSoftMat : switchHeavyMat;
                     }
 
                     const mesh = new THREE.Mesh(tileGeo, mat);
-                    mesh.position.set(tileX, -0.2, tileZ);
+                    mesh.position.set(x, -0.2, y);
                     mesh.receiveShadow = true;
                     mesh.castShadow = true;
                     gridGroup.add(mesh);
 
-                    if (char === 'F') {
-                        fragileMeshes[`${x},${y}`] = mesh;
-                    }
+                    if (char === 'F') fragileMeshes[`${x},${y}`] = mesh;
 
-                    // Add switch icon graphic overlay
                     if (switchInfo) {
                         const iconGeo = new THREE.CylinderGeometry(0.25, 0.25, 0.05, 16);
                         const iconMat = new THREE.MeshStandardMaterial({ 
@@ -552,99 +585,69 @@
                             emissiveIntensity: 0.6 
                         });
                         const iconMesh = new THREE.Mesh(iconGeo, iconMat);
-                        iconMesh.position.set(tileX, 0.03, tileZ);
+                        iconMesh.position.set(x, 0.03, y);
                         gridGroup.add(iconMesh);
                     }
                 }
             }
 
-            // Build Dynamic Bridges
-            currentLevel.bridges.forEach((br, bIdx) => {
-                const mesh = new THREE.Mesh(tileGeo, bridgeMat);
-                mesh.position.set(br.x, -0.2, br.y);
-                mesh.visible = activeBridges[bIdx];
-                mesh.receiveShadow = true;
-                gridGroup.add(mesh);
-                bridgeMeshes.push(mesh);
-            });
+            if (currentLevel.bridges) {
+                currentLevel.bridges.forEach((br, bIdx) => {
+                    const mesh = new THREE.Mesh(tileGeo, bridgeMat);
+                    mesh.position.set(br.x, -0.2, br.y);
+                    mesh.visible = activeBridges[bIdx];
+                    mesh.receiveShadow = true;
+                    gridGroup.add(mesh);
+                    bridgeMeshes.push(mesh);
+                });
+            }
         }
 
-        // --- BLOCK STATE & GRAPHICAL TRANSFORMATIONS ---
+        // --- BLOCK STATE & PHYSICS ROTATION ---
         function updateBlockMeshPosition(animated = true) {
             const { x, y, orient } = blockState;
-            
-            let targetX = x;
-            let targetY = 1.0; // Half height of 2 + box displacement off ground
-            let targetZ = y;
+            let targetX = x, targetY = 0.98, targetZ = y;
             let rotX = 0, rotZ = 0;
 
-            if (orient === ORIENTATION.STANDING) {
-                targetX = x;
-                targetZ = y;
-                targetY = 0.98;
-                rotX = 0;
-                rotZ = 0;
-            } else if (orient === ORIENTATION.HORIZONTAL) {
+            if (orient === ORIENTATION.HORIZONTAL) {
                 targetX = x + 0.5;
-                targetZ = y;
                 targetY = 0.48;
                 rotZ = Math.PI / 2;
             } else if (orient === ORIENTATION.VERTICAL) {
-                targetX = x;
                 targetZ = y + 0.5;
                 targetY = 0.48;
                 rotX = Math.PI / 2;
             }
 
-            if (!animated) {
-                blockMesh.position.set(targetX, targetY, targetZ);
-                blockMesh.rotation.set(rotX, 0, rotZ);
-            } else {
-                // Smooth interpolation for simple movements/resets
-                blockMesh.position.set(targetX, targetY, targetZ);
-                blockMesh.rotation.set(rotX, 0, rotZ);
-            }
+            blockMesh.position.set(targetX, targetY, targetZ);
+            blockMesh.rotation.set(rotX, 0, rotZ);
         }
 
-        // --- PHYSICS & ROLL ANIMATION ---
         function rollBlock(dir) {
             if (isAnimating) return;
 
             const nextState = getNextState(blockState, dir);
             isAnimating = true;
 
-            // Rolling Pivot Math
             const pivot = new THREE.Vector3();
             const axis = new THREE.Vector3();
             const angle = Math.PI / 2;
-
-            const bX = blockState.x;
-            const bY = blockState.y;
-            const orient = blockState.orient;
+            const { x: bX, y: bY, orient } = blockState;
 
             if (dir === DIR.RIGHT) {
                 axis.set(0, 0, -1);
-                if (orient === ORIENTATION.STANDING) pivot.set(bX + 0.5, 0, bY);
-                else if (orient === ORIENTATION.HORIZONTAL) pivot.set(bX + 1.5, 0, bY);
-                else if (orient === ORIENTATION.VERTICAL) pivot.set(bX + 0.5, 0, bY);
+                pivot.set(bX + (orient === ORIENTATION.HORIZONTAL ? 1.5 : 0.5), 0, bY);
             } else if (dir === DIR.LEFT) {
                 axis.set(0, 0, 1);
-                if (orient === ORIENTATION.STANDING) pivot.set(bX - 0.5, 0, bY);
-                else if (orient === ORIENTATION.HORIZONTAL) pivot.set(bX - 0.5, 0, bY);
-                else if (orient === ORIENTATION.VERTICAL) pivot.set(bX - 0.5, 0, bY);
+                pivot.set(bX - 0.5, 0, bY);
             } else if (dir === DIR.DOWN) {
                 axis.set(1, 0, 0);
-                if (orient === ORIENTATION.STANDING) pivot.set(bX, 0, bY + 0.5);
-                else if (orient === ORIENTATION.HORIZONTAL) pivot.set(bX, 0, bY + 0.5);
-                else if (orient === ORIENTATION.VERTICAL) pivot.set(bX, 0, bY + 1.5);
+                pivot.set(bX, 0, bY + (orient === ORIENTATION.VERTICAL ? 1.5 : 0.5));
             } else if (dir === DIR.UP) {
                 axis.set(-1, 0, 0);
-                if (orient === ORIENTATION.STANDING) pivot.set(bX, 0, bY - 0.5);
-                else if (orient === ORIENTATION.HORIZONTAL) pivot.set(bX, 0, bY - 0.5);
-                else if (orient === ORIENTATION.VERTICAL) pivot.set(bX, 0, bY - 0.5);
+                pivot.set(bX, 0, bY - 0.5);
             }
 
-            // Perform smooth rotation animation using Matrix transforms
             const startMatrix = blockMesh.matrix.clone();
             const duration = 180 / aiPlaySpeed;
             const startTime = performance.now();
@@ -652,20 +655,17 @@
             function animateRoll(now) {
                 const elapsed = now - startTime;
                 const progress = Math.min(elapsed / duration, 1.0);
-                
-                // Ease out quad
-                const easeProgress = progress * (2 - progress);
-                const currentAngle = angle * easeProgress;
+                const currentAngle = angle * (progress * (2 - progress)); // easeOutQuad
 
                 const rotationMatrix = new THREE.Matrix4().makeRotationAxis(axis, currentAngle);
                 const translationMatrix = new THREE.Matrix4().makeTranslation(pivot.x, pivot.y, pivot.z);
                 const invTranslationMatrix = new THREE.Matrix4().makeTranslation(-pivot.x, -pivot.y, -pivot.z);
 
-                const finalMatrix = new THREE.Matrix4();
-                finalMatrix.multiply(translationMatrix);
-                finalMatrix.multiply(rotationMatrix);
-                finalMatrix.multiply(invTranslationMatrix);
-                finalMatrix.multiply(startMatrix);
+                const finalMatrix = new THREE.Matrix4()
+                    .multiply(translationMatrix)
+                    .multiply(rotationMatrix)
+                    .multiply(invTranslationMatrix)
+                    .multiply(startMatrix);
 
                 blockMesh.matrix.identity();
                 blockMesh.matrix.multiply(finalMatrix);
@@ -674,7 +674,6 @@
                 if (progress < 1.0) {
                     requestAnimationFrame(animateRoll);
                 } else {
-                    // Animation complete -> Update logical state
                     blockState = nextState;
                     moveCount++;
                     updateUIStats();
@@ -687,7 +686,6 @@
             requestAnimationFrame(animateRoll);
         }
 
-        // Compute state transition given direction
         function getNextState(state, dir) {
             const { x, y, orient } = state;
             let nx = x, ny = y, nOrient = orient;
@@ -712,22 +710,16 @@
             return { x: nx, y: ny, orient: nOrient };
         }
 
-        // Get all grid coordinates currently occupied by block
         function getOccupiedTiles(state) {
             const tiles = [{ x: state.x, y: state.y }];
-            if (state.orient === ORIENTATION.HORIZONTAL) {
-                tiles.push({ x: state.x + 1, y: state.y });
-            } else if (state.orient === ORIENTATION.VERTICAL) {
-                tiles.push({ x: state.x, y: state.y + 1 });
-            }
+            if (state.orient === ORIENTATION.HORIZONTAL) tiles.push({ x: state.x + 1, y: state.y });
+            else if (state.orient === ORIENTATION.VERTICAL) tiles.push({ x: state.x, y: state.y + 1 });
             return tiles;
         }
 
-        // --- COLLISION RULES & GAME RULES ---
         function checkBoardCollisions() {
             const tiles = getOccupiedTiles(blockState);
             
-            // 1. Check bounds / empty tiles / fragile break
             let isValid = true;
             for (let tile of tiles) {
                 if (!isTileSolid(tile.x, tile.y)) {
@@ -736,13 +728,11 @@
                 }
             }
 
-            // Check Fragile orange tile rule
             if (blockState.orient === ORIENTATION.STANDING) {
                 const char = getTileChar(blockState.x, blockState.y);
                 if (char === 'F') {
-                    // Fragile tile collapses under standing vertical weight!
                     isValid = false;
-                    triggerTileBreakAnimation(blockState.x, blockState.y);
+                    triggerTileBreak(blockState.x, blockState.y);
                 }
             }
 
@@ -751,7 +741,6 @@
                 return;
             }
 
-            // 2. Check Level Target Completion Goal
             if (blockState.orient === ORIENTATION.STANDING) {
                 const char = getTileChar(blockState.x, blockState.y);
                 if (char === 'H') {
@@ -760,33 +749,29 @@
                 }
             }
 
-            // 3. Check Switches / Buttons Triggering
-            currentLevel.switches.forEach(sw => {
-                const isTouching = tiles.some(t => t.x === sw.x && t.y === sw.y);
-                if (isTouching) {
-                    if (sw.type === 'soft') {
-                        toggleBridges(sw.targetBridges);
-                    } else if (sw.type === 'heavy' && blockState.orient === ORIENTATION.STANDING) {
-                        toggleBridges(sw.targetBridges);
+            if (currentLevel.switches) {
+                currentLevel.switches.forEach(sw => {
+                    const isTouching = tiles.some(t => t.x === sw.x && t.y === sw.y);
+                    if (isTouching) {
+                        if (sw.type === 'soft' || (sw.type === 'heavy' && blockState.orient === ORIENTATION.STANDING)) {
+                            toggleBridges(sw.targetBridges);
+                        }
                     }
-                }
-            });
+                });
+            }
         }
 
         function isTileSolid(x, y) {
             const char = getTileChar(x, y);
             if (char === ' ' || char === null) return false;
-            if (char === 'H') return true; // Hole is valid to step across, but falling standing finishes stage
+            if (char === 'H') return true;
 
-            // Check Bridge State
-            if (char === 'B') {
+            if (char === 'B' && currentLevel.bridges) {
                 const brIdx = currentLevel.bridges.findIndex(b => b.x === x && b.y === y);
                 if (brIdx !== -1 && !activeBridges[brIdx]) return false;
             }
 
-            // Check if fragile tile is already broken
             if (orangeTilesBroken.has(`${x},${y}`)) return false;
-
             return true;
         }
 
@@ -794,11 +779,10 @@
             if (y < 0 || y >= currentLevel.grid.length) return null;
             const row = currentLevel.grid[y];
             if (x < 0 || x >= row.length) return null;
-            
-            // Check dynamic bridges position
-            const isBridge = currentLevel.bridges.some(b => b.x === x && b.y === y);
-            if (isBridge) return 'B';
 
+            if (currentLevel.bridges && currentLevel.bridges.some(b => b.x === x && b.y === y)) {
+                return 'B';
+            }
             return row[x];
         }
 
@@ -806,18 +790,15 @@
             bridgeIndices.forEach(idx => {
                 if (idx >= 0 && idx < activeBridges.length) {
                     activeBridges[idx] = !activeBridges[idx];
-                    if (bridgeMeshes[idx]) {
-                        bridgeMeshes[idx].visible = activeBridges[idx];
-                    }
+                    if (bridgeMeshes[idx]) bridgeMeshes[idx].visible = activeBridges[idx];
                 }
             });
         }
 
-        function triggerTileBreakAnimation(x, y) {
+        function triggerTileBreak(x, y) {
             orangeTilesBroken.add(`${x},${y}`);
             const mesh = fragileMeshes[`${x},${y}`];
             if (mesh) {
-                // Drop fragile tile frame down
                 mesh.position.y -= 1.0;
                 mesh.visible = false;
             }
@@ -827,7 +808,6 @@
             isAnimating = true;
             stopAutoPlay();
 
-            // Animate block falling into void
             const startY = blockMesh.position.y;
             const startTime = performance.now();
 
@@ -841,7 +821,7 @@
                     requestAnimationFrame(animateFall);
                 } else {
                     isAnimating = false;
-                    showModal(false, "Block Fell Off Edge!", "Be careful around open space and fragile tiles.");
+                    showModal(false, "Block Fell Off Edge!", "Avoid voids and fragile orange tiles.");
                 }
             }
             requestAnimationFrame(animateFall);
@@ -852,13 +832,86 @@
             showModal(true, "Stage Cleared!", `Solved in ${moveCount} moves.`);
         }
 
-        // --- AI SOLVER ALGORITHM (A* / SEARCH TREE) ---
+        // --- LEVEL EDITOR GRID MATRIX BUILDER ---
+        function initEditorGrid(rows, cols) {
+            editorRows = rows;
+            editorCols = cols;
+            editorGrid = Array(rows).fill(null).map(() => Array(cols).fill(' '));
+
+            // Default centered block platform
+            for (let r = 2; r < rows - 2; r++) {
+                for (let c = 2; c < cols - 2; c++) {
+                    editorGrid[r][c] = '.';
+                }
+            }
+            if (rows > 5 && cols > 5) {
+                editorGrid[2][2] = 'S';
+                editorGrid[rows - 3][cols - 3] = 'H';
+            }
+
+            renderEditorGridUI();
+        }
+
+        function renderEditorGridUI() {
+            const container = document.getElementById('blueprintGridContainer');
+            if (!container) return;
+
+            renderBlueprintCanvasGrid();
+        }
+
+        function paintCell(r, c) {
+            const tool = typeof activeTool !== 'undefined' ? activeTool : '.';
+
+            // Guarantee single Start position and Target Goal
+            if (tool === 'S') {
+                for (let i = 0; i < editorRows; i++) {
+                    for (let j = 0; j < editorCols; j++) {
+                        if (editorGrid[i][j] === 'S') editorGrid[i][j] = '.';
+                    }
+                }
+            } else if (tool === 'H') {
+                for (let i = 0; i < editorRows; i++) {
+                    for (let j = 0; j < editorCols; j++) {
+                        if (editorGrid[i][j] === 'H') editorGrid[i][j] = '.';
+                    }
+                }
+            }
+
+            editorGrid[r][c] = tool;
+            renderBlueprintCanvasGrid();
+        }
+
+        function getCellBgClass(char) {
+            switch (char) {
+                case '.': return 'bg-slate-700/80 text-white hover:bg-slate-600';
+                case ' ': return 'bg-slate-950/80 border-slate-800 text-slate-700';
+                case 'F': return 'bg-orange-500 text-slate-950 border-orange-300';
+                case 'O': return 'bg-cyan-500 text-slate-950 border-cyan-300';
+                case 'X': return 'bg-pink-500 text-slate-950 border-pink-300';
+                case 'B': return 'bg-slate-500 text-slate-950 border-slate-300';
+                case 'S': return 'bg-emerald-500 text-slate-950 border-emerald-300 ring-2 ring-emerald-400/50';
+                case 'H': return 'bg-rose-600 text-white border-rose-300 ring-2 ring-rose-500/50';
+                default: return 'bg-slate-800';
+            }
+        }
+
+        function getCellIcon(char) {
+            switch (char) {
+                case 'O': return 'O';
+                case 'X': return 'X';
+                case 'B': return 'B';
+                case 'S': return '<i class="fa-solid fa-cube text-sm"></i>';
+                case 'H': return '<i class="fa-solid fa-bullseye text-sm"></i>';
+                case 'F': return '<i class="fa-solid fa-triangle-exclamation text-xs"></i>';
+                default: return '';
+            }
+        }
+
+        // --- AI SOLVER ALGORITHM (A*) ---
         function solveLevelAI() {
             const startTime = performance.now();
             setAIStatus("Solving...", "bg-amber-500/20 text-amber-300 border-amber-500/30");
 
-            // Initial State representation for Search Node
-            // Bridges state must be hashed to prevent infinite cycles
             const startNode = {
                 x: currentLevel.start.x,
                 y: currentLevel.start.y,
@@ -870,7 +923,6 @@
                 h: 0
             };
 
-            // Goal coordinates
             let targetHole = null;
             for (let y = 0; y < currentLevel.grid.length; y++) {
                 for (let x = 0; x < currentLevel.grid[y].length; x++) {
@@ -883,30 +935,25 @@
 
             if (!targetHole) return;
 
-            // Heuristic function (Manhattan distance to target hole)
             function getHeuristic(state) {
                 return Math.abs(state.x - targetHole.x) + Math.abs(state.y - targetHole.y);
             }
 
-            // Unique State Key Encoder
             function getStateKey(s) {
                 const bridgeKey = s.bridges.map(b => (b ? '1' : '0')).join('');
                 return `${s.x},${s.y},${s.orient},${bridgeKey}`;
             }
 
-            // Priority Queue / Open Set for A*
             const openSet = [startNode];
             const closedSet = new Set();
             let nodesExplored = 0;
             let solutionNode = null;
 
             while (openSet.length > 0) {
-                // Sort by f = g + h
                 openSet.sort((a, b) => (a.g + a.h) - (b.g + b.h));
                 const current = openSet.shift();
                 nodesExplored++;
 
-                // Check Goal Condition
                 if (current.orient === ORIENTATION.STANDING && current.x === targetHole.x && current.y === targetHole.y) {
                     solutionNode = current;
                     break;
@@ -916,7 +963,6 @@
                 if (closedSet.has(key)) continue;
                 closedSet.add(key);
 
-                // Explore 4 Directional Moves
                 const directions = [
                     { dir: DIR.UP, label: 'UP' },
                     { dir: DIR.DOWN, label: 'DOWN' },
@@ -928,18 +974,15 @@
                     const nextSim = getNextState(current, move.dir);
                     const occupied = getOccupiedTiles(nextSim);
 
-                    // Validate Next State Rules
                     let valid = true;
                     let nextBridges = [...current.bridges];
                     let nextBroken = new Set(current.broken);
 
                     for (let tile of occupied) {
-                        // Check Tile validity
                         const char = getTileChar(tile.x, tile.y);
                         if (char === ' ' || char === null) { valid = false; break; }
                         
-                        // Bridge check
-                        if (char === 'B') {
+                        if (char === 'B' && currentLevel.bridges) {
                             const brIdx = currentLevel.bridges.findIndex(b => b.x === tile.x && b.y === tile.y);
                             if (brIdx !== -1 && !nextBridges[brIdx]) { valid = false; break; }
                         }
@@ -949,25 +992,25 @@
 
                     if (!valid) continue;
 
-                    // Fragile orange tile check
                     if (nextSim.orient === ORIENTATION.STANDING) {
                         const char = getTileChar(nextSim.x, nextSim.y);
                         if (char === 'F') { valid = false; continue; }
                     }
 
-                    // Switches Simulation
-                    currentLevel.switches.forEach(sw => {
-                        const isTouching = occupied.some(t => t.x === sw.x && t.y === sw.y);
-                        if (isTouching) {
-                            if (sw.type === 'soft' || (sw.type === 'heavy' && nextSim.orient === ORIENTATION.STANDING)) {
-                                sw.targetBridges.forEach(bIdx => {
-                                    if (bIdx >= 0 && bIdx < nextBridges.length) {
-                                        nextBridges[bIdx] = !nextBridges[bIdx];
-                                    }
-                                });
+                    if (currentLevel.switches) {
+                        currentLevel.switches.forEach(sw => {
+                            const isTouching = occupied.some(t => t.x === sw.x && t.y === sw.y);
+                            if (isTouching) {
+                                if (sw.type === 'soft' || (sw.type === 'heavy' && nextSim.orient === ORIENTATION.STANDING)) {
+                                    sw.targetBridges.forEach(bIdx => {
+                                        if (bIdx >= 0 && bIdx < nextBridges.length) {
+                                            nextBridges[bIdx] = !nextBridges[bIdx];
+                                        }
+                                    });
+                                }
                             }
-                        }
-                    });
+                        });
+                    }
 
                     const neighborNode = {
                         x: nextSim.x,
@@ -980,7 +1023,6 @@
                         h: 0
                     };
                     neighborNode.h = getHeuristic(neighborNode);
-
                     openSet.push(neighborNode);
                 }
             }
@@ -992,7 +1034,6 @@
                 aiSolutionPath = solutionNode.path;
                 aiCurrentStep = 0;
 
-                // Update UI Visualizer
                 document.getElementById('statPathLength').innerText = aiSolutionPath.length;
                 document.getElementById('statNodesExplored').innerText = nodesExplored;
                 document.getElementById('statSolveTime').innerText = `${timeTaken}ms`;
@@ -1000,20 +1041,18 @@
                 renderSolutionQueueUI();
                 setAIStatus("Solved", "bg-emerald-500/20 text-emerald-300 border-emerald-500/30");
                 
-                // Enable Play Controls
                 document.getElementById('btnPlay').disabled = false;
                 document.getElementById('btnStep').disabled = false;
             } else {
                 setAIStatus("No Path Found", "bg-rose-500/20 text-rose-300 border-rose-500/30");
                 document.getElementById('solutionStepsContainer').innerHTML = `
                     <div class="text-rose-400 text-center py-6 text-xs font-semibold">
-                        No valid solution path found for this layout.
+                        No valid solution path exists for this map layout.
                     </div>
                 `;
             }
         }
 
-        // Render AI Solution Moves inside Panel
         function renderSolutionQueueUI() {
             const container = document.getElementById('solutionStepsContainer');
             container.innerHTML = '';
@@ -1023,7 +1062,7 @@
                 item.className = `px-3 py-1.5 rounded-lg flex items-center justify-between transition ${
                     idx === aiCurrentStep 
                         ? 'bg-indigo-600/40 border border-indigo-500/50 text-indigo-100 font-bold' 
-                        : 'bg-slate-900/40 text-slate-400 hover:bg-slate-800/40'
+                        : 'bg-slate-900/40 text-slate-400'
                 }`;
                 
                 let iconClass = 'fa-arrow-up';
@@ -1056,29 +1095,21 @@
 
         function executeAIStep() {
             if (aiCurrentStep >= aiSolutionPath.length || isAnimating) return;
-
             const step = aiSolutionPath[aiCurrentStep];
             rollBlock(step.dir);
             aiCurrentStep++;
             highlightCurrentAIStep();
-
-            if (aiCurrentStep >= aiSolutionPath.length) {
-                stopAutoPlay();
-            }
+            if (aiCurrentStep >= aiSolutionPath.length) stopAutoPlay();
         }
 
         function startAutoPlay() {
             if (aiAutoPlayTimer || aiCurrentStep >= aiSolutionPath.length) return;
-            
             document.getElementById('btnPlay').disabled = true;
             document.getElementById('btnPause').disabled = false;
 
-            const interval = 300 / aiPlaySpeed;
             aiAutoPlayTimer = setInterval(() => {
-                if (!isAnimating) {
-                    executeAIStep();
-                }
-            }, interval);
+                if (!isAnimating) executeAIStep();
+            }, 300 / aiPlaySpeed);
         }
 
         function stopAutoPlay() {
@@ -1101,7 +1132,7 @@
             document.getElementById('btnPause').disabled = true;
             document.getElementById('solutionStepsContainer').innerHTML = `
                 <div class="text-slate-500 text-center py-6 text-xs italic">
-                    Click "Find Shortest Path" to generate move sequence.
+                    Click "Compute Shortest Path" to generate move sequence.
                 </div>
             `;
             setAIStatus("Idle", "bg-slate-800 text-slate-400 border-slate-700");
@@ -1113,106 +1144,358 @@
             tag.className = `text-[10px] font-mono px-2 py-0.5 rounded border ${badgeClasses}`;
         }
 
-        // --- UI & EVENT CONTROLS ---
+        // --- UI CONTROLS & EVENT LISTENERS ---
         function setupUIEventListeners() {
             // Level Selector Dropdown
             const select = document.getElementById('levelSelect');
-            LEVELS.forEach((lvl, idx) => {
+            select.innerHTML = '';
+            PRESET_LEVELS.forEach((lvl, i) => {
                 const opt = document.createElement('option');
-                opt.value = idx;
+                opt.value = i;
                 opt.innerText = lvl.name;
                 select.appendChild(opt);
             });
-            select.addEventListener('change', (e) => loadLevel(parseInt(e.target.value)));
 
-            // Reset Button
+            select.addEventListener('change', (e) => {
+                loadLevel(parseInt(e.target.value));
+            });
+
+            // Tab Switching (3D Play vs 2D Map Builder)
+            const tab3D = document.getElementById('tab3D');
+            const tabEditor = document.getElementById('tabEditor');
+            const editorOverlay = document.getElementById('editorOverlay');
+            const gameControlsBar = document.getElementById('gameControlsBar');
+            const aiSidePanel = document.getElementById('aiSidePanel');
+            const touchDPad = document.getElementById('touchDPad');
+
+            tab3D.addEventListener('click', () => {
+                tab3D.className = "px-4 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 text-white shadow-md transition flex items-center gap-2";
+                tabEditor.className = "px-4 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition flex items-center gap-2";
+                editorOverlay.classList.add('hidden');
+                gameControlsBar.classList.remove('hidden');
+                aiSidePanel.classList.remove('hidden');
+                touchDPad.classList.remove('hidden');
+            });
+
+            tabEditor.addEventListener('click', () => {
+                tabEditor.className = "px-4 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 text-white shadow-md transition flex items-center gap-2";
+                tab3D.className = "px-4 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition flex items-center gap-2";
+                editorOverlay.classList.remove('hidden');
+                gameControlsBar.classList.add('hidden');
+                aiSidePanel.classList.add('hidden');
+                touchDPad.classList.add('hidden');
+                initBlueprintEditor();
+            });
+
+            // Blueprint Palette Selection Buttons
+            const paletteBtns = document.querySelectorAll('.palette-btn');
+            paletteBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    paletteBtns.forEach(b => b.classList.remove('active-tool'));
+                    btn.classList.add('active-tool');
+                    activeTool = btn.getAttribute('data-tool');
+                });
+            });
+
+            // Shortcut keys 1-8 for palette swapping
+            window.addEventListener('keydown', (e) => {
+                if (editorOverlay.classList.contains('hidden')) return;
+                const toolKeys = {
+                    '1': ' ',
+                    '2': '.',
+                    '3': 'F',
+                    '4': 'O',
+                    '5': 'X',
+                    '6': 'B',
+                    '7': 'S',
+                    '8': 'H'
+                };
+                if (toolKeys[e.key]) {
+                    activeTool = toolKeys[e.key];
+                    paletteBtns.forEach(b => {
+                        if (b.getAttribute('data-tool') === activeTool) {
+                            b.classList.add('active-tool');
+                        } else {
+                            b.classList.remove('active-tool');
+                        }
+                    });
+                }
+            });
+
+            // Blueprint Grid Controls
+            document.getElementById('btnResizeGrid').addEventListener('click', () => {
+                editorRows = parseInt(document.getElementById('editRows').value) || 8;
+                editorCols = parseInt(document.getElementById('editCols').value) || 10;
+                initBlueprintEditorGridData();
+                renderBlueprintCanvasGrid();
+            });
+
+            document.getElementById('btnClearGrid').addEventListener('click', () => {
+                initBlueprintEditorGridData();
+                renderBlueprintCanvasGrid();
+            });
+
+            document.getElementById('btnTestLevel').addEventListener('click', compileCustomLevelAndPlay);
+
+            // Controls & Reset
             document.getElementById('btnReset').addEventListener('click', () => loadLevel(currentLevelIdx));
-
-            // AI Action Controls
             document.getElementById('btnSolve').addEventListener('click', solveLevelAI);
             document.getElementById('btnPlay').addEventListener('click', startAutoPlay);
             document.getElementById('btnPause').addEventListener('click', stopAutoPlay);
-            document.getElementById('btnStep').addEventListener('click', () => {
-                stopAutoPlay();
-                executeAIStep();
-            });
+            document.getElementById('btnStep').addEventListener('click', () => { stopAutoPlay(); executeAIStep(); });
 
-            // Speed Slider
-            const speedSlider = document.getElementById('speedSlider');
-            speedSlider.addEventListener('input', (e) => {
+            document.getElementById('speedSlider').addEventListener('input', (e) => {
                 aiPlaySpeed = parseFloat(e.target.value);
                 document.getElementById('speedValue').innerText = `${aiPlaySpeed.toFixed(1)}x`;
-                if (aiAutoPlayTimer) {
-                    stopAutoPlay();
-                    startAutoPlay();
-                }
+                if (aiAutoPlayTimer) { stopAutoPlay(); startAutoPlay(); }
             });
 
-            // Keyboard Arrow & WASD Navigation
             window.addEventListener('keydown', (e) => {
-                if (isAnimating) return;
-
+                if (!editorOverlay.classList.contains('hidden') || isAnimating) return;
                 switch (e.key) {
-                    case 'ArrowUp':
-                    case 'w':
-                    case 'W':
-                        rollBlock(DIR.UP);
-                        break;
-                    case 'ArrowDown':
-                    case 's':
-                    case 'S':
-                        rollBlock(DIR.DOWN);
-                        break;
-                    case 'ArrowLeft':
-                    case 'a':
-                    case 'A':
-                        rollBlock(DIR.LEFT);
-                        break;
-                    case 'ArrowRight':
-                    case 'd':
-                    case 'D':
-                        rollBlock(DIR.RIGHT);
-                        break;
-                    case 'r':
-                    case 'R':
-                        loadLevel(currentLevelIdx);
-                        break;
+                    case 'ArrowUp': case 'w': case 'W': rollBlock(DIR.UP); break;
+                    case 'ArrowDown': case 's': case 'S': rollBlock(DIR.DOWN); break;
+                    case 'ArrowLeft': case 'a': case 'A': rollBlock(DIR.LEFT); break;
+                    case 'ArrowRight': case 'd': case 'D': rollBlock(DIR.RIGHT); break;
+                    case 'r': case 'R': loadLevel(currentLevelIdx); break;
                 }
             });
 
-            // Mobile D-Pad Buttons
             document.getElementById('btnUp').addEventListener('click', () => rollBlock(DIR.UP));
             document.getElementById('btnDown').addEventListener('click', () => rollBlock(DIR.DOWN));
             document.getElementById('btnLeft').addEventListener('click', () => rollBlock(DIR.LEFT));
             document.getElementById('btnRight').addEventListener('click', () => rollBlock(DIR.RIGHT));
 
-            // Modal Dialog Actions
-            document.getElementById('btnModalRestart').addEventListener('click', () => {
-                hideModal();
-                loadLevel(currentLevelIdx);
-            });
-
+            document.getElementById('btnModalRestart').addEventListener('click', () => { hideModal(); loadLevel(currentLevelIdx); });
             document.getElementById('btnModalNext').addEventListener('click', () => {
                 hideModal();
-                const nextIdx = (currentLevelIdx + 1) % LEVELS.length;
+                const nextIdx = (currentLevelIdx + 1) % PRESET_LEVELS.length;
                 document.getElementById('levelSelect').value = nextIdx;
                 loadLevel(nextIdx);
             });
         }
 
+        // --- BLUEPRINT LEVEL BUILDER LOGIC ---
+        function initBlueprintEditor() {
+            if (editorGrid.length === 0) {
+                initBlueprintEditorGridData();
+            }
+            renderBlueprintCanvasGrid();
+        }
+
+        function initBlueprintEditorGridData() {
+            editorGrid = [];
+            for (let r = 0; r < editorRows; r++) {
+                let row = [];
+                for (let c = 0; c < editorCols; c++) {
+                    row.push(' '); // Start all void
+                }
+                editorGrid.push(row);
+            }
+            // Add default start & goal for convenience
+            if (editorRows > 3 && editorCols > 5) {
+                editorGrid[1][1] = 'S';
+                editorGrid[1][2] = '.';
+                editorGrid[1][3] = '.';
+                editorGrid[1][4] = 'H';
+            }
+        }
+
+        function renderBlueprintCanvasGrid() {
+            const container = document.getElementById('blueprintGridContainer');
+            container.innerHTML = '';
+
+            const table = document.createElement('div');
+            table.className = "flex flex-col gap-1";
+
+            // Header row coordinates
+            const headerRow = document.createElement('div');
+            headerRow.className = "flex gap-1 mb-1";
+            headerRow.appendChild(createCoordinateLabel('#'));
+            for (let c = 0; c < editorCols; c++) {
+                headerRow.appendChild(createCoordinateLabel(c));
+            }
+            table.appendChild(headerRow);
+
+            for (let r = 0; r < editorRows; r++) {
+                const rowDiv = document.createElement('div');
+                rowDiv.className = "flex gap-1";
+                
+                // Row index header label
+                rowDiv.appendChild(createCoordinateLabel(r));
+
+                for (let c = 0; c < editorCols; c++) {
+                    const char = editorGrid[r][c];
+                    const cell = document.createElement('div');
+                    cell.className = `blueprint-cell rounded-xl ${getBlueprintTileStyle(char)}`;
+                    cell.dataset.row = r;
+                    cell.dataset.col = c;
+                    cell.innerHTML = getBlueprintTileIcon(char);
+
+                    // Mouse drag painting listeners
+                    cell.addEventListener('mousedown', (e) => {
+                        e.preventDefault();
+                        isMouseDownPainting = true;
+                        paintCell(r, c, cell);
+                    });
+
+                    cell.addEventListener('mouseenter', () => {
+                        if (isMouseDownPainting) {
+                            paintCell(r, c, cell);
+                        }
+                    });
+
+                    rowDiv.appendChild(cell);
+                }
+                table.appendChild(rowDiv);
+            }
+
+            container.appendChild(table);
+
+            window.addEventListener('mouseup', () => {
+                isMouseDownPainting = false;
+            });
+        }
+
+        function createCoordinateLabel(text) {
+            const label = document.createElement('div');
+            label.className = "w-[56px] h-6 flex items-center justify-center font-mono text-[10px] text-slate-500 font-bold uppercase";
+            label.innerText = text;
+            return label;
+        }
+
+        function paintCell(r, c, cellElem) {
+            // Guarantee single start position
+            if (activeTool === 'S') {
+                for (let row = 0; row < editorRows; row++) {
+                    for (let col = 0; col < editorCols; col++) {
+                        if (editorGrid[row][col] === 'S') editorGrid[row][col] = '.';
+                    }
+                }
+            }
+
+            // Guarantee single target goal
+            if (activeTool === 'H') {
+                for (let row = 0; row < editorRows; row++) {
+                    for (let col = 0; col < editorCols; col++) {
+                        if (editorGrid[row][col] === 'H') editorGrid[row][col] = '.';
+                    }
+                }
+            }
+
+            editorGrid[r][c] = activeTool;
+            renderBlueprintCanvasGrid();
+        }
+
+        function getBlueprintTileStyle(char) {
+            switch (char) {
+                case '.': return 'bg-slate-800 text-slate-200 border-slate-700 shadow-md';
+                case 'F': return 'bg-orange-950/80 text-orange-400 border-orange-700/60 shadow-md shadow-orange-950/40';
+                case 'O': return 'bg-cyan-950/80 text-cyan-300 border-cyan-700/60 shadow-md shadow-cyan-950/40';
+                case 'X': return 'bg-pink-950/80 text-pink-300 border-pink-700/60 shadow-md shadow-pink-950/40';
+                case 'B': return 'bg-slate-700/80 text-slate-300 border-slate-600 shadow-md';
+                case 'S': return 'bg-indigo-950/90 text-indigo-300 border-indigo-500 shadow-lg shadow-indigo-950/60';
+                case 'H': return 'bg-emerald-950/90 text-emerald-300 border-emerald-500 shadow-lg shadow-emerald-950/60';
+                default: return 'bg-slate-950/60 text-slate-700 border-white/5';
+            }
+        }
+
+        function getBlueprintTileIcon(char) {
+            switch (char) {
+                case '.': return '<i class="fa-solid fa-square text-slate-600 text-xs"></i>';
+                case 'F': return '<i class="fa-solid fa-border-none text-orange-400 text-lg"></i>';
+                case 'O': return '<i class="fa-regular fa-circle-dot text-cyan-400 text-lg"></i>';
+                case 'X': return '<i class="fa-solid fa-xmark text-pink-400 text-xl font-black"></i>';
+                case 'B': return '<i class="fa-solid fa-bars text-slate-400 text-lg"></i>';
+                case 'S': return '<i class="fa-solid fa-cube text-indigo-400 text-xl"></i>';
+                case 'H': return '<i class="fa-solid fa-bullseye text-emerald-400 text-xl"></i>';
+                default: return '';
+            }
+        }
+
+        function compileCustomLevelAndPlay() {
+            let startPos = null;
+            let goalPos = null;
+            let switches = [];
+            let bridges = [];
+
+            // Convert editorGrid array to level map format
+            let gridStrings = [];
+            for (let r = 0; r < editorRows; r++) {
+                let rowStr = "";
+                for (let c = 0; c < editorCols; c++) {
+                    let char = editorGrid[r][c];
+                    if (char === 'S') {
+                        startPos = { x: c, y: r };
+                        rowStr += '.';
+                    } else if (char === 'H') {
+                        goalPos = { x: c, y: r };
+                        rowStr += 'H';
+                    } else if (char === 'O') {
+                        switches.push({ x: c, y: r, type: 'soft', targetBridges: [], action: 'toggle' });
+                        rowStr += '.';
+                    } else if (char === 'X') {
+                        switches.push({ x: c, y: r, type: 'heavy', targetBridges: [], action: 'toggle' });
+                        rowStr += '.';
+                    } else if (char === 'B') {
+                        bridges.push({ x: c, y: r, active: false });
+                        rowStr += ' ';
+                    } else {
+                        rowStr += char;
+                    }
+                }
+                gridStrings.push(rowStr);
+            }
+
+            // Attach switches to all bridges created
+            if (bridges.length > 0) {
+                const bridgeIndices = bridges.map((_, i) => i);
+                switches.forEach(sw => sw.targetBridges = bridgeIndices);
+            }
+
+            if (!startPos) {
+                alert("Please place a Start Position (7) on the blueprint before playing!");
+                return;
+            }
+            if (!goalPos) {
+                alert("Please place a Goal Hole Target (8) on the blueprint before playing!");
+                return;
+            }
+
+            const customLevel = {
+                id: PRESET_LEVELS.length + 1,
+                name: `Custom Map #${customLevelCounter++}`,
+                start: startPos,
+                grid: gridStrings,
+                switches: switches,
+                bridges: bridges
+            };
+
+            PRESET_LEVELS.push(customLevel);
+            const select = document.getElementById('levelSelect');
+            const opt = document.createElement('option');
+            opt.value = PRESET_LEVELS.length - 1;
+            opt.innerText = customLevel.name;
+            select.appendChild(opt);
+            select.value = PRESET_LEVELS.length - 1;
+
+            // Switch to 3D View and run level
+            document.getElementById('tab3D').click();
+            loadLevel(PRESET_LEVELS.length - 1);
+        }
+
         function updateUIStats() {
             document.getElementById('moveCounter').innerText = moveCount;
-
             const badge = document.getElementById('orientationBadge');
             if (blockState.orient === ORIENTATION.STANDING) {
                 badge.innerText = 'Standing';
-                badge.className = 'text-xs font-semibold px-2.5 py-1 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 inline-block mt-0.5';
+                badge.className = 'text-xs font-semibold px-2.5 py-1 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 inline-block';
             } else if (blockState.orient === ORIENTATION.HORIZONTAL) {
                 badge.innerText = 'Horizontal (X)';
-                badge.className = 'text-xs font-semibold px-2.5 py-1 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 inline-block mt-0.5';
+                badge.className = 'text-xs font-semibold px-2.5 py-1 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 inline-block';
             } else if (blockState.orient === ORIENTATION.VERTICAL) {
                 badge.innerText = 'Vertical (Y)';
-                badge.className = 'text-xs font-semibold px-2.5 py-1 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30 inline-block mt-0.5';
+                badge.className = 'text-xs font-semibold px-2.5 py-1 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30 inline-block';
             }
         }
 
@@ -1246,12 +1529,9 @@
 
             card.classList.remove('scale-100', 'opacity-100');
             card.classList.add('scale-95', 'opacity-0');
-            setTimeout(() => {
-                overlay.classList.add('hidden');
-            }, 200);
+            setTimeout(() => { overlay.classList.add('hidden'); }, 200);
         }
 
-        // --- MAIN RENDER LOOP ---
         function animateLoop() {
             requestAnimationFrame(animateLoop);
             controls.update();
