@@ -1,6 +1,6 @@
 import { isWin, parseLevel, render, roll } from "./game.ts"
 import type { Move } from "./game.ts"
-import { bestMove, isWinScore } from "./minimax.ts"
+import { bestMove } from "./minimax.ts"
 
 // Bloxorz level 1
 const LEVEL_1 = `
@@ -12,7 +12,6 @@ const LEVEL_1 = `
 ......###.
 `
 
-const MAX_DEPTH = 30
 const MAX_STEPS = 100
 
 const level = parseLevel(LEVEL_1)
@@ -23,9 +22,9 @@ console.log("Start:")
 console.log(render(level, block))
 
 while (!isWin(level, block) && moves.length < MAX_STEPS) {
-    const result = bestMove(level, block, MAX_DEPTH)
+    const result = bestMove(level, block)
     if (!result.move) {
-        console.log("No move keeps the block on the board.")
+        console.log("The goal cannot be reached from here.")
         break
     }
 
@@ -33,9 +32,8 @@ while (!isWin(level, block) && moves.length < MAX_STEPS) {
     moves.push({ direction: result.move, start_position: block.orientation, end_position: next.orientation })
     block = next
 
-    const outlook = isWinScore(result.score) ? "win in reach" : `heuristic ${result.score}`
     console.log(`\nStep ${moves.length}: ${result.move} (${moves.at(-1)!.start_position} -> ${block.orientation}), ` +
-        `${outlook}, depth ${result.depth}, ${result.nodes} nodes`)
+        `goal ${result.movesToGoal} moves away, ${result.nodes} nodes`)
     console.log(render(level, block))
 }
 

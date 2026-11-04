@@ -75,6 +75,7 @@ export function cells(block: Block): Cell[] {
     const { x, y, orientation } = block
     if (orientation === "S") return [{ x, y }]
     if (orientation === "H") return [{ x, y }, { x: x + 1, y }]
+    // If not S or H, has to be V
     return [{ x, y }, { x, y: y + 1 }]
 }
 
